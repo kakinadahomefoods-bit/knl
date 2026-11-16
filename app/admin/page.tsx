@@ -338,6 +338,9 @@ export default function Admin() {
           ['email', 'Contact email'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp number'], ['address', 'Address'], ['about', 'About text'],
           ['freeShippingThreshold', 'Free shipping above (₹)'], ['flatShippingFee', 'Flat shipping fee (₹)'],
         ].map(([k, l]) => <label key={k}>{l}<textarea value={settings[k] ?? ''} onChange={(e) => setSettings((v) => ({ ...v, [k]: e.target.value }))} /></label>)}
+        <label>Homepage testimonials (one approved review per line: Name | Review)
+          <textarea value={settings.testimonials ?? ''} onChange={(e) => setSettings((v) => ({ ...v, testimonials: e.target.value }))} />
+        </label>
         <button className="primary-button">Save Settings</button>
       </form>}
 

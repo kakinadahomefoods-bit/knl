@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ContactPage from '@/components/ContactPage';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
   ShieldCheck, Mail, Phone, Copy, Check, Package, AlertTriangle, MapPin,
@@ -102,12 +103,20 @@ const [heroIndex, setHeroIndex] = useState(0);
       setWish(JSON.parse(localStorage.getItem('cruvita-wish') || '[]'));
     } catch { /* ignore corrupt local storage */ }
 
-    fetch('/api/products?limit=100')
-      .then((r) => r.json())
-      .then((x) => {
-        setProducts(x.products || []);
-        setCategories(x.categories || []);
-      })
+    async function loadProducts() {
+      const getPage = async (page: number) => {
+        const response = await fetch(`/api/products?limit=100&page=${page}`);
+        if (!response.ok) throw new Error('Products unavailable');
+        return response.json();
+      };
+      const first = await getPage(1);
+      const remaining = await Promise.all(
+        Array.from({ length: Math.max(0, (first.pages || 1) - 1) }, (_, index) => getPage(index + 2))
+      );
+      setProducts([...(first.products || []), ...remaining.flatMap((result) => result.products || [])]);
+      setCategories(first.categories || []);
+    }
+    loadProducts()
       .catch(() => notice('Products are temporarily unavailable', 'error'))
       .finally(() => setLoading(false));
 
@@ -229,10 +238,21 @@ useEffect(() => {
   const shipping = subtotal >= freeThreshold ? 0 : flatFee;
   const total = subtotal + (entries.length ? shipping : 0);
   const cartCount = cart.reduce((s, x) => s + x.qty, 0);
+  const testimonials = typeof settings.testimonials === 'string'
+    ? settings.testimonials.split('\n').map((line: string) => {
+        const separator = line.indexOf('|');
+        return separator < 0 ? null : { name: line.slice(0, separator).trim(), text: line.slice(separator + 1).trim() };
+      }).filter((review: { name: string; text: string } | null): review is { name: string; text: string } => Boolean(review?.name && review.text))
+    : [];
   const sortedBanners = [...banners].filter((b) => b?.enabled !== false).sort((a, b) => (Number(a?.sortOrder) || 0) - (Number(b?.sortOrder) || 0));
   const heroImage = homepage.image || sortedBanners[0]?.image || '';
-  const heroSlides = [homepage.image, ...sortedBanners.map((b) => b?.image)].filter(Boolean);
-const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
+  const optimizedBanner = (url: string) => ({
+    '/Hero_Banner.png': '/Hero_Banner.webp',
+    '/Cookies_Brownies_Banner.png': '/Cookies_Brownies_Banner.webp',
+    '/Gift_Boxes_Banner.png': '/Gift_Boxes_Banner.webp',
+  } as Record<string, string>)[url] || url;
+  const heroSlides = [homepage.image, ...sortedBanners.map((b) => b?.image)].filter(Boolean).map(optimizedBanner);
+  const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.webp'];
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
@@ -340,7 +360,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
           <Heart size={19} fill={wished ? '#a54c40' : 'none'} />
         </button>
         <button className="product-photo" onClick={() => openProduct(p)}>
-          {p.images?.[0] ? <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {p.images?.[0] ? <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <span>{p.category === 'Brownies' ? '🍫' : p.category === 'Gift Boxes' ? '🎁' : '🍪'}</span>}
           {p.tags?.[0] && <small>{p.tags[0]}</small>}
         </button>
@@ -362,7 +382,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
       <div className="navwrap">
         <button className="mobile-only iconbtn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
         <button className="brand" onClick={() => navigate('home')}>
-          <img src="/cruvita-logo.png" alt="Cruvita Cookies" style={{ height: 58, maxWidth: 120, width: 'auto', objectFit: 'contain' }} />
+          <img src="/cruvita-logo.webp" alt="Cruvita Cookies" width={87} height={58} style={{ height: 58, maxWidth: 120, width: 'auto', objectFit: 'contain' }} />
         </button>
         <nav className={menu ? 'nav open' : 'nav'}>
           <button onClick={() => navigate('home')}>Home</button>
@@ -383,7 +403,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
     {message && <div className={'notice ' + (messageKind === 'error' ? 'notice-error' : messageKind === 'success' ? 'notice-success' : '')} role="status">{message}</div>}
 
     {page === 'home' && <>
-      <section className="hero hero-slider" style={{ backgroundImage: `url(${heroSlidesFinal[heroIndex] || '/Hero_Banner.png'})` }}>
+      <section className="hero hero-slider" style={{ backgroundImage: `url(${heroSlidesFinal[heroIndex] || '/Hero_Banner.webp'})` }}>
         <div className="hero-overlay">
           <div className="eyebrow">✦ {homepage.eyebrow || 'FRESHLY BAKED JOY'} ✦</div>
           <h1>{homepage.title || 'A little bite of'} <i>{homepage.subtitle || 'happiness.'}</i></h1>
@@ -397,7 +417,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
       <div className="trust"><span>✦ Thoughtfully Baked</span><span>♡ Made with Care</span><span>♧ Perfect for Gifting</span><span>✧ Delivered with Love</span></div>
       <div className="trust trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
       <section className="section">
-        <div className="section-heading"><div className="eyebrow">EXPLORE OUR COLLECTIONS</div><h2>Shop by <i>Category</i></h2></div>
+        <div className="section-heading section-heading-centered"><div className="eyebrow">EXPLORE OUR COLLECTIONS</div><h2>Shop by <i>Category</i></h2></div>
         <div className="category-grid">
           {categoriesForNav.map((c) => {
             const cat = categories.find((x) => x.name === c);
@@ -411,7 +431,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
       </section>
 
       <section className="section tinted">
-        <div className="section-heading"><div className="eyebrow">CUSTOMER FAVORITES</div><h2>Our Sweet <i>Bestsellers</i></h2></div>
+        <div className="section-heading section-heading-centered"><div className="eyebrow">CUSTOMER FAVORITES</div><h2>Our Sweet <i>Bestsellers</i></h2></div>
         {loading ? <p className="center">Loading treats…</p> : (
           <>
             <div className="product-grid">
@@ -427,10 +447,10 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
 
       <section className="section promo-section">
         <div className="promo-grid">
-          <button className="promo-card" onClick={() => { setCategory('All'); navigate('shop'); }} style={{ backgroundImage: 'url(/Cookies_Brownies_Banner.png)' }}>
+          <button className="promo-card" onClick={() => { setCategory('All'); navigate('shop'); }} style={{ backgroundImage: 'url(/Cookies_Brownies_Banner.webp)' }}>
             <span>Cookies & Brownies — Shop All</span>
           </button>
-          <button className="promo-card" onClick={() => { setCategory('Gift Boxes'); navigate('shop'); }} style={{ backgroundImage: 'url(/Gift_Boxes_Banner.png)' }}>
+          <button className="promo-card" onClick={() => { setCategory('Gift Boxes'); navigate('shop'); }} style={{ backgroundImage: 'url(/Gift_Boxes_Banner.webp)' }}>
             <span>Gift Boxes</span>
           </button>
         </div>
@@ -448,7 +468,17 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
       </section>}
 
       <section className="section">
-        <div className="section-heading"><div className="eyebrow">REELS</div><h2>Sweet <i>Moments</i></h2></div>
+        <div className="section-heading"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
+        {testimonials.length ? <div className="testimonial-grid">
+          {testimonials.map((review: { name: string; text: string }, index: number) => <article className="testimonial-card" key={`${review.name}-${index}`}>
+            <p>“{review.text}”</p>
+            <strong>— {review.name}</strong>
+          </article>)}
+        </div> : <p className="center">Customer testimonials are coming soon.</p>}
+      </section>
+
+      <section className="section">
+        <div className="section-heading section-heading-centered"><div className="eyebrow">REELS</div><h2>Sweet <i>Moments</i></h2></div>
         <div className="reels-row">
           {[1, 2, 3, 4].map((i) => <div className="reel-placeholder" key={i}>▶</div>)}
         </div>
@@ -467,16 +497,17 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
     {page === 'shop' && <main className="page-shell">
       <div className="eyebrow">DISCOVER THE GOODNESS</div>
       <h1>Our Sweet <i>Collection</i></h1>
-      <div className="shop-tools">
-        <div className="chips">{['All', ...categoriesForNav].map((c) => <button key={c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
-        <label className="search"><Search size={17} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search treats…" /></label>
-      </div>
-      <div className="filter-panel">
+      <div className="shop-layout">
+      <aside className="filter-panel" aria-label="Product filters">
+        <h2>Filters</h2>
+        <label className="search"><Search size={17} /><input aria-label="Search treats" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search treats…" /></label>
+        <div className="filter-categories"><strong>Category</strong><div className="chips">{['All', ...categoriesForNav].map((c) => <button key={c} className={category === c ? 'active' : ''} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}</div></div>
         <label>Min price (₹)<input type="number" min="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="0" /></label>
         <label>Max price (₹)<input type="number" min="0" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Any" /></label>
         <label className="filter-check"><input type="checkbox" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} /> In stock only</label>
         <button className="outline-button" type="button" onClick={() => { setMinPrice(''); setMaxPrice(''); setInStockOnly(false); setCategory('All'); setSearch(''); }}>Clear filters</button>
-      </div>
+      </aside>
+      <div className="shop-results">
       <div className="filter-bar">
         <span><SlidersHorizontal size={15} /> {visible.length} products</span>
         <label>Sort <select value={sort} onChange={(e) => setSort(e.target.value)}>
@@ -485,7 +516,9 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
         </select></label>
       </div>
       <div className="product-grid">{visible.map(tile)}</div>
-      {!visible.length && <div className="empty">No products found. Try another search.</div>}
+      {!loading && !visible.length && <div className="empty">No products found. Try another search.</div>}
+      </div>
+      </div>
 
       <div className="trust trust-shop"><span>✦ Thoughtfully Baked</span><span>♡ Made with Care</span><span>♧ Perfect for Gifting</span><span>✧ Delivered with Love</span><span>🛡️ Secure Checkout</span><span>🚚 Fresh Delivery</span></div>
       <div className="trust trust-shop trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
@@ -622,13 +655,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
       <button className="primary-button" onClick={() => navigate('shop')}>Explore the Collection →</button>
     </main>}
 
-    {page === 'contact' && <main className="page-shell prose">
-      <div className="eyebrow">WE'D LOVE TO HEAR FROM YOU</div><h1>Say <i>Hello!</i></h1>
-      <p>Questions about an order or our treats? Get in touch.</p>
-      <p><Mail size={16} /> <a href={'mailto:' + email}>{email}</a></p>
-      {settings.phone && <p><Phone size={16} /> {settings.phone}</p>}
-      {settings.address && <p><MapPin size={16} /> {settings.address}</p>}
-    </main>}
+    {page === 'contact' && <ContactPage email={email} phone={settings.phone} address={settings.address} whatsapp={whatsappNumber} />}
 
     {page === 'policies' && <main className="page-shell prose">
       <h1>Store <i>Policies</i></h1>

@@ -25,5 +25,47 @@
 .filter-panel input[type=number]{padding:9px 12px;border:1px solid #e4d5c9;border-radius:9px;min-width:110px}
 .filter-check{flex-direction:row !important;align-items:center;gap:8px !important}
 .filter-panel button{padding:9px 14px}
+.shop-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:28px;align-items:start;margin-top:24px}
+.shop-layout .filter-panel{display:flex;flex-direction:column;align-items:stretch;gap:18px;padding:20px}
+.shop-layout .filter-panel h2{font-size:24px;margin:0}
+.shop-layout .filter-panel .search{display:flex;flex-direction:row;align-items:center}
+.shop-layout .filter-panel .search input{min-width:0;width:100%}
+.filter-categories strong{display:block;color:var(--muted);font-size:13px;margin-bottom:10px}
+.filter-categories .chips{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.filter-categories .chips button{text-align:left}
+.shop-layout .filter-panel input[type=number]{width:100%;min-width:0}
+.shop-results{min-width:0}
+.shop-results .filter-bar{margin-top:0}
+@media(max-width:700px){.shop-layout{grid-template-columns:1fr;gap:12px}.filter-categories .chips{flex-direction:row;flex-wrap:wrap}}
 .link-button{background:none;border:0;color:#b8785d;font-weight:700;cursor:pointer;font-size:13px}.section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}.trust{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:18px 0;padding:14px 0;border-top:1px solid #ecd9ca;border-bottom:1px solid #ecd9ca;font-size:13px;color:#743c2e;font-weight:600}.trust span{padding:4px 10px}.trust-shop{margin:30px 0 10px}.testimonial-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:16px}.testimonial-card{background:#fffdf9;border:1px solid #ecd9ca;border-radius:16px;padding:20px;box-shadow:0 8px 24px #442c1b08}.testimonial-card .stars{color:#d4a017;font-size:18px;letter-spacing:2px;margin-bottom:10px}.testimonial-card p{line-height:1.6;margin:0 0 12px;color:#40241e}.testimonial-card strong{color:#a54c40;font-size:13px}.promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.promo-card{min-height:220px;border:0;border-radius:18px;background-size:cover;background-position:center;color:#fff;font-size:24px;font-weight:700;display:grid;place-items:center;position:relative;overflow:hidden}.promo-card span{background:rgba(42,12,10,.5);padding:10px 18px;border-radius:10px}.reels-row{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}.reel-placeholder{min-width:160px;height:260px;border-radius:16px;background:#f4d8c6;display:grid;place-items:center;font-size:40px;color:#743c2e}.brand-story{text-align:center}.brand-story-copy{max-width:760px;margin:0 auto}.brand-story-copy h2{margin-bottom:14px}.brand-story-copy p{margin-bottom:20px;line-height:1.7}
 @media (prefers-reduced-motion:reduce){.product-card,.product-card:hover,.product-photo span,.product-photo img{transition:none;transform:none}.product-card::before{display:none}}
+
+/* Contact page */
+.contact-page{background:#fffaf3}
+.contact-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:32px;padding:90px max(8vw,calc((100vw - 1200px)/2));background:linear-gradient(115deg,#f9e9db,#f3d2bd)}
+.contact-hero-inner{max-width:680px;position:relative;z-index:1}
+.contact-hero h1{margin:0 0 20px;line-height:1.08}.contact-hero h1 i,.contact-content h2 i{color:#ad6557}
+.contact-hero p,.contact-intro>p,.contact-form-card>p{line-height:1.8;color:#765a50;max-width:520px}
+.contact-hero-link{display:inline-flex;align-items:center;gap:10px;margin-top:16px;font-weight:700;color:#743c2e}
+.contact-hero-art{width:240px;height:240px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #b8755a77;border-radius:50%;color:#a65f48;transform:rotate(-12deg)}
+.contact-hero-art span{font-size:96px;line-height:1}.contact-hero-art small{font-size:10px;font-weight:700;letter-spacing:2px}
+.contact-content{max-width:1200px;margin:auto;padding:90px 36px;display:grid;grid-template-columns:1fr 1.1fr;gap:80px}
+.contact-content h2{font-size:clamp(32px,3.5vw,48px);line-height:1.15;margin:0 0 16px}
+.contact-methods{display:grid;gap:12px;margin-top:32px}
+.contact-method{display:flex;gap:16px;align-items:flex-start;padding:18px;border:1px solid #eddcd0;border-radius:14px;background:#fffdf9;overflow-wrap:anywhere}
+.contact-method-icon{width:44px;height:44px;flex-shrink:0;display:grid;place-items:center;border-radius:12px;background:#f8e8dc;color:#a55e49}
+.contact-method strong,.contact-method small,.contact-method b{display:block}.contact-method small{margin:4px 0 7px;color:#826c64}.contact-method b{font-size:14px;color:#a55e49}
+.contact-form-card{padding:40px;border-radius:22px;background:#fff;box-shadow:0 15px 55px #6d3d2710;border:1px solid #f0e2d7;scroll-margin-top:110px}
+.contact-form-card form{display:grid;gap:18px;margin-top:28px}.contact-form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.contact-form-card label{display:grid;gap:8px;font-weight:700;font-size:13px}
+.contact-form-card input,.contact-form-card select,.contact-form-card textarea{width:100%;border:1px solid #e9d9ce;border-radius:9px;padding:13px;background:#fffdfb;color:#40241e;font:inherit}
+.contact-form-card textarea{resize:vertical}.contact-form-card input:focus,.contact-form-card select:focus,.contact-form-card textarea:focus{outline:2px solid #bd765b;outline-offset:1px}
+.contact-form-card .primary-button{justify-self:start;display:inline-flex;align-items:center;gap:10px}.contact-form-card .contact-form-note{font-size:12px;line-height:1.5;margin:0;color:#826c64}
+.contact-bottom{text-align:center;padding:28px;background:#f8e9dc;color:#765a50}.contact-bottom span{color:#ad6557}
+@media(max-width:800px){.contact-hero{padding:64px 24px}.contact-hero-art{width:150px;height:150px}.contact-hero-art span{font-size:60px}.contact-content{grid-template-columns:1fr;gap:40px;padding:60px 24px}}
+@media(max-width:540px){.contact-hero-art{display:none}.contact-form-card{padding:26px 20px}.contact-form-row{grid-template-columns:1fr}}
+.section-heading.section-heading-centered {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
