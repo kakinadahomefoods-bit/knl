@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { storyDefaults } from '@/lib/story';
+import './login.css';
 
 type Any = Record<string, any>;
 const SECTIONS = [
@@ -186,15 +187,32 @@ export default function Admin() {
 
   if (checking) return <main className="page-shell prose"><p>Checking session…</p></main>;
 
-  if (!logged) return <main className="page-shell prose">
-    <h1>Cruvita <i>Admin Login</i></h1>
-    <form className="checkout-form" onSubmit={login}>
-      <label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-      <label>Password<input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-      <button className="primary-button">Sign in</button>
-    </form>
-    {msg && <p role="alert" className="notice notice-error">{msg}</p>}
-    <Link href="/">← Storefront</Link>
+  if (!logged) return <main className="admin-login">
+    <div className="admin-login-card">
+      <div className="admin-login-form-side">
+        <Link className="admin-login-brand" href="/" aria-label="Cruvita Cookies storefront">
+          <img src="/newlogo.jpeg" alt="Cruvita Cookies" />
+        </Link>
+        <div className="admin-login-content">
+          <span className="admin-login-eyebrow">CRUVITA COOKIES · STORE ADMIN</span>
+          <h1>Welcome <i>back.</i></h1>
+          <p className="admin-login-intro">Sign in to manage your store, products and orders.</p>
+          {msg && <p role="alert" className="admin-login-error">{msg}</p>}
+          <form className="admin-login-form" onSubmit={login}>
+            <label htmlFor="admin-email">Email address</label>
+            <input id="admin-email" type="email" autoComplete="username" placeholder="you@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <label htmlFor="admin-password">Password</label>
+            <input id="admin-password" type="password" autoComplete="current-password" placeholder="Enter your password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="submit">Sign in <span aria-hidden="true">→</span></button>
+          </form>
+          <Link className="admin-login-back" href="/">← Back to storefront</Link>
+        </div>
+        <p className="admin-login-footnote">Cruvita Cookies · A little sweetness, every day.</p>
+      </div>
+      <div className="admin-login-image" aria-hidden="true">
+        <div className="admin-login-image-copy"><span>MADE FOR SWEET MOMENTS</span><p>A little bite of <i>happiness.</i></p></div>
+      </div>
+    </div>
   </main>;
 
   return <div className="admin">
