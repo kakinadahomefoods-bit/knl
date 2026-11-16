@@ -362,8 +362,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
       <div className="navwrap">
         <button className="mobile-only iconbtn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
         <button className="brand" onClick={() => navigate('home')}>
-          {settings.logo ? <img src={settings.logo} alt="Cruvita Cookies" style={{ height: 46, width: 'auto' }} />
-            : <><span className="brand-icon">✿</span><span>Cruvita <em>Cookies</em></span></>}
+          <img src="/cruvita-logo.png" alt="Cruvita Cookies" style={{ height: 58, maxWidth: 120, width: 'auto', objectFit: 'contain' }} />
         </button>
         <nav className={menu ? 'nav open' : 'nav'}>
           <button onClick={() => navigate('home')}>Home</button>
