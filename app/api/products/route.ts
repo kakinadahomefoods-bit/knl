@@ -66,8 +66,14 @@ export async function GET(req: Request) {
         image: optimizedImageUrl(c.image),
       })),
     });
-  } catch {
-    return Response.json({ error: 'Database unavailable', products: [], categories: [] }, { status: 503 });
+  } catch (error) {
+    // Never log connection strings or raw driver messages, which may contain credentials.
+    const kind = !process.env.MONGODB_URI ? 'MONGODB_URI_MISSING'
+      : error instanceof Error && error.name === 'MongoServerSelectionError' ? 'MONGODB_SERVER_SELECTION_FAILED'
+      : error instanceof Error && error.name === 'MongoServerError' ? 'MONGODB_SERVER_ERROR'
+      : 'PRODUCT_QUERY_FAILED';
+    console.error('[products] Catalogue request failed:', kind);
+    return Response.json({ error: 'Database unavailable' }, { status: 503 });
   }
 }
 

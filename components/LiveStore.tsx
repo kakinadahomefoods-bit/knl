@@ -69,7 +69,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
 const [heroIndex, setHeroIndex] = useState(0);
   const [policy, setPolicy] = useState(initialPolicy || 'shipping');
   const [cart, setCart] = useState<Cart[]>([]);
-  const [wish, setWish] = useState<string[]>([]);
   const [coupon, setCoupon] = useState('');
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '', address: '', city: '', state: '', pin: '' });
   const [busy, setBusy] = useState(false);
@@ -104,7 +103,6 @@ const [heroIndex, setHeroIndex] = useState(0);
 
     try {
       setCart(JSON.parse(localStorage.getItem('cruvita-cart') || '[]'));
-      setWish(JSON.parse(localStorage.getItem('cruvita-wish') || '[]'));
     } catch { /* ignore corrupt local storage */ }
 
     async function loadProducts() {
@@ -161,7 +159,6 @@ const [heroIndex, setHeroIndex] = useState(0);
   }, []);
 
   useEffect(() => { localStorage.setItem('cruvita-cart', JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem('cruvita-wish', JSON.stringify(wish)); }, [wish]);
 useEffect(() => {
   const slides = [homepage.image, ...banners.filter((b: any) => b?.enabled !== false).map((b: any) => b?.image)].filter(Boolean);
   const count = slides.length > 1 ? slides.length : 1;
@@ -211,8 +208,9 @@ useEffect(() => {
     setCart((c) => c.map((i) => (i.id === id ? { ...i, qty: i.qty + delta } : i)).filter((i) => i.qty > 0));
   }
 
-  function toggleWish(id: string) {
-    setWish((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
+  function buyNow(id: string) {
+    setCart((current) => current.some((item) => item.id === id) ? current : [...current, { id, qty: 1 }]);
+    navigate('checkout');
   }
 
   // Every category is available inside Shop All — there are no separate category pages.
@@ -342,7 +340,6 @@ useEffect(() => {
   }
 
   function tile(p: P) {
-    const wished = wish.includes(p._id);
     return (
       <article className="product-card" key={p._id}
         onMouseMove={(e) => {
@@ -360,9 +357,6 @@ useEffect(() => {
           el.style.setProperty('--rx', '0deg');
           el.style.setProperty('--ry', '0deg');
         }}>
-        <button className="heart" aria-label="Toggle wishlist" onClick={() => toggleWish(p._id)}>
-          <Heart size={19} fill={wished ? '#a54c40' : 'none'} />
-        </button>
         <button className="product-photo" onClick={() => openProduct(p)}>
           {p.images?.[0] ? <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <span>{p.category === 'Brownies' ? '🍫' : p.category === 'Gift Boxes' ? '🎁' : '🍪'}</span>}
@@ -375,6 +369,7 @@ useEffect(() => {
           <button className="outline-button" disabled={p.stock < 1} onClick={() => add(p._id)}>
             {p.stock < 1 ? 'Sold Out' : 'Add to Bag +'}
           </button>
+          <button className="primary-button product-buy-now" disabled={p.stock < 1} onClick={() => buyNow(p._id)}>Buy Now</button>
         </div>
       </article>
     );
@@ -396,7 +391,6 @@ useEffect(() => {
           <button onClick={() => navigate('contact')}>Contact</button>
         </nav>
         <div className="nav-actions">
-          <button className="iconbtn" aria-label="Wishlist" onClick={() => navigate('wishlist')}><Heart /></button>
           <button className="iconbtn bag" aria-label="Shopping bag" onClick={() => navigate('cart')}>
             <ShoppingBag />{cartCount > 0 && <b>{cartCount}</b>}
           </button>
@@ -447,28 +441,6 @@ useEffect(() => {
         )}
         <div className="center"><button className="primary-button" onClick={() => { setCategory('Bestsellers'); navigate('shop'); }}>Shop Bestsellers →</button></div>
       </section>
-
-      <section className="section promo-section">
-        <div className="promo-grid">
-          <button className="promo-card" onClick={() => { setCategory('All'); navigate('shop'); }} style={{ backgroundImage: 'url(/Cookies_Brownies_Banner.webp)' }}>
-            <span>Cookies & Brownies — Shop All</span>
-          </button>
-          <button className="promo-card" onClick={() => { setCategory('Gift Boxes'); navigate('shop'); }} style={{ backgroundImage: 'url(/Gift_Boxes_Banner.webp)' }}>
-            <span>Gift Boxes</span>
-          </button>
-        </div>
-      </section>
-
-      {sortedBanners.length > 0 && <section className="section promo-section">
-        <div className="section-heading"><div className="eyebrow">FEATURED OFFERS</div><h2>Sweet <i>Offers</i></h2></div>
-        <div className="promo-grid" style={{ gridTemplateColumns: sortedBanners.length >= 3 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)' }}>
-          {sortedBanners.map((b, i) => (
-            <button key={b?.key || i} className="promo-card" onClick={() => { if (b?.link) window.open(b.link, '_blank', 'noopener,noreferrer'); else navigate('shop'); }} style={{ backgroundImage: `url(${b?.image || ''})` }}>
-              <span>{b?.title || 'Special Offer'}</span>
-            </button>
-          ))}
-        </div>
-      </section>}
 
       {(Array.isArray(content.find((c) => c.key === 'custom-sections')?.value) ? content.find((c) => c.key === 'custom-sections')!.value : [])
         .filter((section: any) => section.enabled !== false)
@@ -533,7 +505,7 @@ useEffect(() => {
       </aside>
       <div className="shop-results">
       <div className="filter-bar">
-        <span><SlidersHorizontal size={15} /> {visible.length} products</span>
+        <span><SlidersHorizontal size={15} /> {loading ? 'Loading products…' : catalogueError ? 'Product count unavailable' : `${visible.length} products`}</span>
         <label>Sort <select value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="new">Newest</option><option value="price-asc">Price: low to high</option>
           <option value="price-desc">Price: high to low</option><option value="name">Name</option>
@@ -544,8 +516,6 @@ useEffect(() => {
       {!loading && !catalogueError && !visible.length && <div className="empty">No products found. Try another search.</div>}
       </div>
       </div>
-
-      <StoreBenefits compact />
 
     </main>}
 
@@ -569,22 +539,20 @@ useEffect(() => {
           <p>{selected.description}</p>
           {(selected.variants?.length ?? 0) > 0 && <div className="muted tiny">Variants: {selected.variants?.map((v: any) => v.name).join(', ')}</div>}
           <p>{selected.stock > 0 ? <><ShieldCheck size={15} /> {selected.stock} available</> : 'Currently sold out'}</p>
-          <StoreBenefits compact />
           <div className="detail-actions">
             <button className="primary-button" disabled={selected.stock < 1} onClick={() => add(selected._id)}>Add to Bag →</button>
-            <button className="outline-button" onClick={() => toggleWish(selected._id)}>
-              <Heart size={17} fill={wish.includes(selected._id) ? '#a54c40' : 'none'} /> Wishlist
-            </button>
+            <button className="outline-button" disabled={selected.stock < 1} onClick={() => buyNow(selected._id)}>Buy Now →</button>
           </div>
         </div>
       </div>
+      {products.some((p) => p._id !== selected._id && p.category === selected.category) && <section className="related-products">
+        <div className="section-heading"><div className="eyebrow">A LITTLE MORE TO LOVE</div><h2>You may also <i>like</i></h2></div>
+        <div className="product-grid">
+          {products.filter((p) => p._id !== selected._id && p.category === selected.category).slice(0, 4).map(tile)}
+        </div>
+      </section>}
     </main>}
 
-    {page === 'wishlist' && <main className="page-shell">
-      <div className="eyebrow">SAVED FOR LATER</div><h1>Your <i>Wishlist</i></h1>
-      {wish.length ? <div className="product-grid">{products.filter((p) => wish.includes(p._id)).map(tile)}</div>
-        : <div className="empty"><Heart size={40} /><h2>Nothing saved yet</h2><button className="primary-button" onClick={() => navigate('shop')}>Explore treats</button></div>}
-    </main>}
 
     {page === 'cart' && <main className="page-shell">
       <div className="eyebrow">YOUR SWEET SELECTION</div><h1>Shopping <i>Bag</i></h1>

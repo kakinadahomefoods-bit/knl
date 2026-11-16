@@ -6,6 +6,10 @@
 .filter-bar span{display:flex;align-items:center;gap:8px}.filter-bar select{padding:9px 12px;border:1px solid #e4d5c9;border-radius:9px;background:#fff;color:var(--ink)}
 .gallery-thumbs{display:flex;gap:10px;margin-top:12px}.gallery-thumbs button{width:64px;height:64px;padding:0;border:2px solid transparent;border-radius:10px;overflow:hidden;background:#f6ece3}.gallery-thumbs button.active{border-color:#a54c40}.gallery-thumbs img{width:100%;height:100%;object-fit:cover}
 .detail-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;align-items:center}.detail-actions .outline-button{display:flex;align-items:center;gap:8px}
+.product-buy-now{display:flex;width:100%;justify-content:center;margin-top:8px}
+.detail-actions{flex-direction:column;align-items:stretch;max-width:360px}
+.detail-actions .primary-button,.detail-actions .outline-button{width:100%;justify-content:center}
+.related-products{margin-top:80px;padding-top:48px;border-top:1px solid #ecd9ca}
 .sim-card,.success-card,.tracking-card{max-width:720px;margin:30px auto;padding:30px;border:1px solid #ecd9ca;border-radius:18px;background:#fffdf9;text-align:center}
 .sim-card svg,.success-card svg{color:#a54c40;margin-bottom:10px}.sim-card button{margin:10px 6px 0}.sim-label{color:#8f2f24;font-weight:700;background:#fdeceb;padding:10px;border-radius:8px}
 .token-box{display:flex;align-items:center;gap:10px;justify-content:center;word-break:break-all;margin:18px 0;padding:14px;background:#f9f0e8;border-radius:10px}

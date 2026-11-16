@@ -1,4 +1,2 @@
-import type { Metadata } from 'next';
-import LiveStore from '@/components/LiveStore';
-export const metadata: Metadata = { title: 'Wishlist | Cruvita Cookies' };
-export default function Page() { return <LiveStore initialPage="wishlist" />; }
+import { redirect } from 'next/navigation';
+export default function Page() { redirect('/shop'); }
