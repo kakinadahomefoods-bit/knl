@@ -394,6 +394,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
         </div>}
       </section>
       <div className="trust"><span>✦ Thoughtfully Baked</span><span>♡ Made with Care</span><span>♧ Perfect for Gifting</span><span>✧ Delivered with Love</span></div>
+      <div className="trust trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
       <section className="section">
         <div className="section-heading"><div className="eyebrow">EXPLORE OUR COLLECTIONS</div><h2>Shop by <i>Category</i></h2></div>
         <div className="category-grid">
@@ -485,6 +486,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
       {!visible.length && <div className="empty">No products found. Try another search.</div>}
 
       <div className="trust trust-shop"><span>✦ Thoughtfully Baked</span><span>♡ Made with Care</span><span>♧ Perfect for Gifting</span><span>✧ Delivered with Love</span><span>🛡️ Secure Checkout</span><span>🚚 Fresh Delivery</span></div>
+      <div className="trust trust-shop trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
 
       <section className="section">
         <div className="section-heading"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
@@ -611,6 +613,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
 
     {page === 'about' && <main className="page-shell prose">
       <div className="eyebrow">WELCOME TO CRUVITA</div><h1>Every bite tells a <i>sweet story.</i></h1>
+      <div className="trust trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
       <p>{settings.about || 'Cruvita Cookies makes thoughtful cookies, brownies and gift boxes for life’s sweetest moments. Our full brand story and photographs will appear here once approved.'}</p>
       {settings.address && <p><MapPin size={15} /> {settings.address}</p>}
       <button className="primary-button" onClick={() => navigate('shop')}>Explore the Collection →</button>
@@ -662,7 +665,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
           <p>[Placeholder City, State, India]</p>
           <p>[Placeholder Phone: +91 XXXXX XXXXX]</p>
           <a href="mailto:placeholder@example.com">[placeholder@example.com]</a>
-          <p>[FSSAI Lic. XXXXXXXXXXXXXX]</p>
+          <p>FSSAI Certified · Lic. 23625014000747</p>
         </div>
       </div>
       <div className="footer-bottom">© {new Date().getFullYear()} Cruvita Cookies. All rights reserved.</div>
