@@ -23,7 +23,6 @@ export default function ContactPage({ email, phone, address, whatsapp }: {
         <p>Have a question about our treats, an order, or a special occasion? We’d love to hear from you.</p>
         <a className="contact-hero-link" href="#contact-form">Get in touch <ArrowRight size={17} /></a>
       </div>
-      <div className="contact-hero-art" aria-hidden="true"><span>✿</span><small>BAKED WITH LOVE</small></div>
     </section>
 
     <section className="contact-content">
