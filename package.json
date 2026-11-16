@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cloudinary": "^2.5.0",
     "lucide-react": "^0.468.0",
     "mongoose": "^8.12.0",
