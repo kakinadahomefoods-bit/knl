@@ -85,7 +85,8 @@ const [heroIndex, setHeroIndex] = useState(0);
   const email = settings.email || 'cruvitacookies7@gmail.com';
   const freeThreshold = Number(settings.freeShippingThreshold ?? 999);
   const flatFee = Number(settings.flatShippingFee ?? 80);
-  const whatsappDigits = String(settings.whatsapp || settings.phone || '').replace(/\D/g, '');
+  const phone = settings.phone || '+919390429016';
+  const whatsappDigits = String(settings.whatsapp || phone).replace(/\D/g, '');
   const whatsappNumber = whatsappDigits.length === 10 ? '91' + whatsappDigits : whatsappDigits;
   const whatsappUrl = whatsappNumber ? 'https://wa.me/' + whatsappNumber : 'https://wa.me/';
 
@@ -483,12 +484,21 @@ useEffect(() => {
 
       <section className="section">
         <div className="section-heading"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
-        {testimonials.length ? <div className="testimonial-grid">
+        <div className="testimonial-grid">
+          {[
+            { name: 'Priya S.', text: 'The chocolate chip cookies were divine — perfectly chewy and not too sweet. Will order again!', stars: 5 },
+            { name: 'Rahul M.', text: 'Gift box packaging was beautiful and the brownies were incredibly fudgy. Highly recommend.', stars: 5 },
+            { name: 'Ananya K.', text: 'Fresh, warm and delivered on time. Cruvita has become our go-to for celebrations.', stars: 4 },
+          ].map((t) => <article className="testimonial-card" key={t.name}>
+            <div className="stars">{'★'.repeat(t.stars)}{'☆'.repeat(5 - t.stars)}</div>
+            <p>“{t.text}”</p>
+            <strong>— {t.name}</strong>
+          </article>)}
           {testimonials.map((review: { name: string; text: string }, index: number) => <article className="testimonial-card" key={`${review.name}-${index}`}>
             <p>“{review.text}”</p>
             <strong>— {review.name}</strong>
           </article>)}
-        </div> : <p className="center">Customer testimonials are coming soon.</p>}
+        </div>
       </section>
 
       <section className="section">
@@ -537,22 +547,6 @@ useEffect(() => {
 
       <StoreBenefits compact />
 
-      <section className="section">
-        <div className="section-heading"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
-        <div className="testimonial-grid">
-          {[
-            { name: 'Priya S.', text: 'The chocolate chip cookies were divine — perfectly chewy and not too sweet. Will order again!', stars: 5 },
-            { name: 'Rahul M.', text: 'Gift box packaging was beautiful and the brownies were incredibly fudgy. Highly recommend.', stars: 5 },
-            { name: 'Ananya K.', text: 'Fresh, warm and delivered on time. Cruvita has become our go-to for celebrations.', stars: 4 },
-          ].map((t) => (
-            <article className="testimonial-card" key={t.name}>
-              <div className="stars">{'★'.repeat(t.stars)}{'☆'.repeat(5 - t.stars)}</div>
-              <p>“{t.text}”</p>
-              <strong>— {t.name}</strong>
-            </article>
-          ))}
-        </div>
-      </section>
     </main>}
 
     {page === 'product' && selected && <main className="page-shell">
@@ -663,7 +657,7 @@ useEffect(() => {
 
     {page === 'about' && <StoryPage content={content.find((c) => c.key === 'our-story')?.value || {}} products={products} loading={loading} tile={tile} />}
 
-    {page === 'contact' && <ContactPage email={email} phone={settings.phone} address={settings.address} whatsapp={whatsappNumber} />}
+    {page === 'contact' && <ContactPage email={email} phone={phone} address={settings.address} whatsapp={whatsappNumber} />}
 
     {page === 'policies' && <main className="page-shell prose">
       <h1>Store <i>Policies</i></h1>
@@ -700,7 +694,7 @@ useEffect(() => {
           <h4>Contact</h4>
           <p>[Placeholder Address Line 1]</p>
           <p>[Placeholder City, State, India]</p>
-          <p>[Placeholder Phone: +91 XXXXX XXXXX]</p>
+          <p><a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a></p>
           <a href="mailto:placeholder@example.com">[placeholder@example.com]</a>
           <p>FSSAI Certified · Lic. 23625014000747</p>
         </div>

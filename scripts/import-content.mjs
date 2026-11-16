@@ -21,7 +21,8 @@ await col.updateOne(
   { $set: { key: 'settings', value: {
       storeName: 'Cruvita Cookies',
       email: 'cruvitacookies7@gmail.com',
-      phone: '+91 81256 24430',
+      phone: '+919390429016',
+      whatsapp: '+919390429016',
       address: '8-3-112, Karimnagar, Telangana, India',
       about: 'Cruvita Cookies brings sweet moments to your doorstep with thoughtfully baked cookies, brownies and gift boxes.',
       announcement: 'Sweet moments, freshly baked • Cruvita Cookies',

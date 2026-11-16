@@ -11,8 +11,8 @@ const defaults = {
   settings: {
     storeName: 'Cruvita Cookies',
     email: 'cruvitacookies7@gmail.com',
-    phone: '',
-    whatsapp: '',
+    phone: '+919390429016',
+    whatsapp: '+919390429016',
     address: '',
     about: 'Cruvita Cookies brings sweet moments to your doorstep with thoughtfully baked cookies, brownies and gift boxes.',
     announcement: 'Sweet moments, freshly baked • Cruvita Cookies',
