@@ -368,7 +368,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
         <nav className={menu ? 'nav open' : 'nav'}>
           <button onClick={() => navigate('home')}>Home</button>
           <button onClick={() => { setCategory('All'); navigate('shop'); }}>Shop All</button>
-          {categoriesForNav.map((c) => <button key={c} onClick={() => { setCategory(c); navigate('shop'); }}>{c}</button>)}
+          {categoriesForNav.filter((c) => !['Cookies', 'Brownies', 'Gift Boxes', 'Bestsellers'].includes(c)).map((c) => <button key={c} onClick={() => { setCategory(c); navigate('shop'); }}>{c}</button>)}
           <button onClick={() => navigate('about')}>Our Story</button>
           <button onClick={() => navigate('contact')}>Contact</button>
         </nav>
@@ -409,6 +409,21 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
             </button>;
           })}
         </div>
+      </section>
+
+      <section className="section tinted">
+        <div className="section-heading"><div className="eyebrow">CUSTOMER FAVORITES</div><h2>Our Sweet <i>Bestsellers</i></h2></div>
+        {loading ? <p className="center">Loading treats…</p> : (
+          <>
+            <div className="product-grid">
+              {products.filter((p) => p.category === 'Bestsellers' || p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))).slice(0, 8).map(tile)}
+            </div>
+            {!products.some((p) => p.category === 'Bestsellers' || p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))) && (
+              <p className="center">Our bestsellers are coming soon.</p>
+            )}
+          </>
+        )}
+        <div className="center"><button className="primary-button" onClick={() => { setCategory('Bestsellers'); navigate('shop'); }}>Shop Bestsellers →</button></div>
       </section>
 
       <section className="section promo-section">
@@ -643,7 +658,6 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
         <div>
           <h4>Help</h4>
           <button onClick={() => navigate('policies', { policy: 'shipping' })}>Shipping &amp; Delivery</button>
-          <button onClick={() => navigate('policies', { policy: 'refund' })}>Returns</button>
           <button onClick={() => navigate('policies', { policy: 'privacy' })}>Privacy Policy</button>
           <button onClick={() => navigate('policies', { policy: 'terms' })}>Terms of Service</button>
           <button onClick={() => navigate('contact')}>Contact</button>
