@@ -1,0 +1,153 @@
+{
+  "observedAt": "2026-11-16T15:45:34.586Z",
+  "discovered": 20,
+  "created": 0,
+  "updated": 20,
+  "skipped": 20,
+  "errors": [],
+  "products": [
+    {
+      "slug": "all-mix-cookies-250g-4-types-of-cookies",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "chocolate-chip-cookies-400g-6pcs",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "chocolate-chip-cookies-700g-pack-of-8",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "double-chocolate-chip-cookies-700g-pack-of-8",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "double-chocolate-chip-cookies-400g-pack-of-6",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "chocolate-walnut-brownie-pack-of-6",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "classic-chocolate-brownie-pack-of-6",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "double-chocolate-brownies-pack-of-6",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "all-mix-brownies",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "dry-fruits-cookies-250g-pack-of-5",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "oreo-cookies-400g-pack-of-6",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "oreo-cookies-700g-pack-of-8",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "almond-choco-cookies",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "mini-chocolate-chip-cookies",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "mini-double-chocolate-chip-cookies-250g",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "nutella-brownies-pack-of-6",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "red-velvet-cookies-400g-pack-of-6",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "red-velvet-cookies-700g-pack-of-8",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "mini-red-velvet-cookies-250g",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    },
+    {
+      "slug": "choco-chip-butter-cake-300g",
+      "status": "existing preserved",
+      "published": true,
+      "imageApproval": "unverified",
+      "priceApproval": "unverified"
+    }
+  ],
+  "totalProducts": 20,
+  "publishedProducts": 20,
+  "draftProducts": 0
+}

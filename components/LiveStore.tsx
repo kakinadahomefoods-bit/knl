@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import StoryPage from './StoryPage';
 import ContactPage from '@/components/ContactPage';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
@@ -54,6 +55,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [homepage, setHomepage] = useState<any>({});
   const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [catalogueError, setCatalogueError] = useState('');
   const [menu, setMenu] = useState(false);
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
@@ -117,7 +119,7 @@ const [heroIndex, setHeroIndex] = useState(0);
       setCategories(first.categories || []);
     }
     loadProducts()
-      .catch(() => notice('Products are temporarily unavailable', 'error'))
+      .catch(() => setCatalogueError('Products are temporarily unavailable. Please refresh the page to try again.'))
       .finally(() => setLoading(false));
 
     fetch('/api/content')
@@ -172,7 +174,7 @@ useEffect(() => {
       cart: 'Your Bag', wishlist: 'Wishlist', checkout: 'Guest Checkout', success: 'Order Confirmed',
       about: 'Our Story', contact: 'Contact Us', policies: 'Store Policies',
     };
-    document.title = (settings.storeName || 'Cruvita Cookies') + ' | ' + (titles[page] || 'Baked with Love');
+    document.title = page === 'about' ? 'Our Story | Cruvita Cookies' : (settings.storeName || 'Cruvita Cookies') + ' | ' + (titles[page] || 'Baked with Love');
   }, [page, selected, settings.storeName]);
 
   function navigate(to: PageKey, opts?: { slug?: string; policy?: string }) {
@@ -382,7 +384,7 @@ useEffect(() => {
       <div className="navwrap">
         <button className="mobile-only iconbtn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
         <button className="brand" onClick={() => navigate('home')}>
-          <img src="/cruvita-logo.webp" alt="Cruvita Cookies" width={87} height={58} style={{ height: 58, maxWidth: 120, width: 'auto', objectFit: 'contain' }} />
+          <img src={settings.logo || "/newlogo.jpeg"} alt="Cruvita Cookies" width={87} height={58} style={{ height: 58, maxWidth: 120, width: 'auto', objectFit: 'contain' }} />
         </button>
         <nav className={menu ? 'nav open' : 'nav'}>
           <button onClick={() => navigate('home')}>Home</button>
@@ -467,6 +469,18 @@ useEffect(() => {
         </div>
       </section>}
 
+      {(Array.isArray(content.find((c) => c.key === 'custom-sections')?.value) ? content.find((c) => c.key === 'custom-sections')!.value : [])
+        .filter((section: any) => section.enabled !== false)
+        .sort((a: any, b: any) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0))
+        .map((section: any) => <section className="section custom-section" key={section.id}>
+          <div className="section-heading section-heading-centered">
+            {section.eyebrow && <div className="eyebrow">{section.eyebrow}</div>}
+            <h2>{section.title}</h2>
+          </div>
+          {section.image && <img src={section.image} alt="" />}
+          {section.description && <p>{section.description}</p>}
+        </section>)}
+
       <section className="section">
         <div className="section-heading"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
         {testimonials.length ? <div className="testimonial-grid">
@@ -516,7 +530,8 @@ useEffect(() => {
         </select></label>
       </div>
       <div className="product-grid">{visible.map(tile)}</div>
-      {!loading && !visible.length && <div className="empty">No products found. Try another search.</div>}
+      {!loading && catalogueError && <div className="notice notice-error" role="alert">{catalogueError}</div>}
+      {!loading && !catalogueError && !visible.length && <div className="empty">No products found. Try another search.</div>}
       </div>
       </div>
 
@@ -647,13 +662,7 @@ useEffect(() => {
 
 
 
-    {page === 'about' && <main className="page-shell prose">
-      <div className="eyebrow">WELCOME TO CRUVITA</div><h1>Every bite tells a <i>sweet story.</i></h1>
-      <div className="trust trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
-      <p>{settings.about || 'Cruvita Cookies makes thoughtful cookies, brownies and gift boxes for life’s sweetest moments. Our full brand story and photographs will appear here once approved.'}</p>
-      {settings.address && <p><MapPin size={15} /> {settings.address}</p>}
-      <button className="primary-button" onClick={() => navigate('shop')}>Explore the Collection →</button>
-    </main>}
+    {page === 'about' && <StoryPage content={content.find((c) => c.key === 'our-story')?.value || {}} products={products} loading={loading} tile={tile} />}
 
     {page === 'contact' && <ContactPage email={email} phone={settings.phone} address={settings.address} whatsapp={whatsappNumber} />}
 

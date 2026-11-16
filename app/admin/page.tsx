@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { storyDefaults } from '@/lib/story';
 
 type Any = Record<string, any>;
 const SECTIONS = [
   'Dashboard', 'Products', 'Categories', 'Inventory', 'Orders', 'Payments',
-  'Shipments', 'Coupons', 'Banners', 'Policies', 'SEO', 'Settings', 'Media',
+  'Shipments', 'Coupons', 'Banners', 'Sections', 'Our Story', 'Policies', 'SEO', 'Settings', 'Media',
 ];
 
 const MEDIA_FOLDERS = [
@@ -29,6 +30,7 @@ export default function Admin() {
   const [edit, setEdit] = useState<Any>({});
   const [settings, setSettings] = useState<Any>({});
   const [homepage, setHomepage] = useState<Any>({});
+  const [story, setStory] = useState<Any>(storyDefaults);
   const [file, setFile] = useState<File | null>(null);
   const [folder, setFolder] = useState('cruvita/products');
   const [uploadTarget, setUploadTarget] = useState<'edit' | 'homepage' | 'settings'>('edit');
@@ -62,6 +64,15 @@ export default function Admin() {
         setItems((await api('/api/admin/banners')).banners || []);
         const content = (await api('/api/content')).content || [];
         setHomepage(content.find((c: Any) => c.key === 'homepage')?.value || {});
+      }
+      if (section === 'Sections') {
+        const content = (await api('/api/content')).content || [];
+        const sections = content.find((c: Any) => c.key === 'custom-sections')?.value;
+        setItems(Array.isArray(sections) ? sections : []);
+      }
+      if (section === 'Our Story') {
+        const content = (await api('/api/content')).content || [];
+        setStory({ ...storyDefaults, ...(content.find((c: Any) => c.key === 'our-story')?.value || {}) });
       }
       if (['Policies', 'SEO', 'Settings'].includes(section)) setSettings((await api('/api/admin/settings')).settings || {});
       if (section === 'Media') setItems((await api('/api/admin/media')).media || []);
@@ -103,7 +114,7 @@ export default function Admin() {
       } else {
         setEdit((p: Any) => ({
           ...p,
-          images: targetFolder === 'cruvita/products' ? [...(Array.isArray(p.images) ? p.images : []), x.url] : p.images,
+          images: targetFolder === 'cruvita/products' ? [...(Array.isArray(p.images) ? p.images : String(p.images || '').split(',').map((s: string) => s.trim()).filter(Boolean)), x.url] : p.images,
           image: targetFolder !== 'cruvita/products' ? x.url : p.image,
           logo: targetFolder === 'cruvita/logo' ? x.url : p.logo,
           publicId: targetFolder !== 'cruvita/products' ? x.publicId : p.publicId,
@@ -166,10 +177,10 @@ export default function Admin() {
   );
 
   const uploader = (targetFolder = folder, target: 'edit' | 'homepage' | 'settings' = 'edit') => <>
-    <label className="muted tiny">{MEDIA_FOLDERS.find(([v]) => v === targetFolder)?.[1] || 'Image'} (Cloudinary)</label>
+    <label className="muted tiny">{MEDIA_FOLDERS.find(([v]) => v === targetFolder)?.[1] || 'Image'} — choose an image from your device (max 5 MB)</label>
     <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
     <button type="button" disabled={busy || !file} onClick={() => { setFolder(targetFolder); setUploadTarget(target); upload(targetFolder, target); }}>
-      {busy ? 'Uploading…' : 'Upload to Cloudinary'}
+      {busy ? 'Uploading…' : 'Upload image'}
     </button>
   </>;
 
@@ -303,15 +314,90 @@ export default function Admin() {
         <h2 className="admin-section-title">Additional banners</h2>
         <div className="admin-panel">{items.map((b) => <div className="admin-line" key={b.key}>
           <span>{b.key} — {b.title || '(no title)'}</span>
+          <button onClick={() => { setEdit({ ...b, slug: b.key.slice('banner:'.length) }); setFile(null); }}>Edit</button>
           <button onClick={async () => { if (confirm('Delete banner?')) { await api('/api/admin/banners', 'DELETE', { key: b.key }); load('Banners'); } }}>Delete</button>
         </div>)}</div>
         <form className="checkout-form" onSubmit={async (e) => { e.preventDefault(); try { await api('/api/admin/banners', 'POST', edit); setEdit({}); report('Banner saved', false); load('Banners'); } catch (err: any) { report(err.message, true); } }}>
-          <h3>Add banner</h3>
-          {['slug', 'title', 'subtitle', 'image', 'link'].map((k) => field(k))}
+          <h3>{edit.key ? 'Edit banner' : 'Add banner'}</h3>
+          <label>Slug<input required disabled={!!edit.key} value={edit.slug || ''} onChange={(e) => setEdit((v) => ({ ...v, slug: e.target.value }))} /></label>
+          {['title', 'subtitle', 'image', 'link', 'sortOrder'].map((k) => field(k))}
+          <label><input type="checkbox" checked={edit.enabled !== false} onChange={(e) => setEdit((v) => ({ ...v, enabled: e.target.checked }))} /> Enabled</label>
           {uploader('cruvita/banners')}
           <button className="primary-button">Save Banner</button>
+          {edit.key && <button type="button" onClick={() => setEdit({})}>Cancel editing</button>}
         </form>
       </>}
+
+      {tab === 'Sections' && <>
+        <p className="muted">Create custom homepage sections with text and an optional image. Sections appear in the order shown below.</p>
+        <button className="primary-button" onClick={() => { setEdit({ id: crypto.randomUUID(), title: '', enabled: true, sortOrder: items.length }); setFile(null); }}>+ Add Section</button>
+        <div className="admin-panel">{items.map((s) => <div className="admin-line" key={s.id}>
+          <span>{s.title} {s.enabled === false ? '— hidden' : ''}</span>
+          <button onClick={() => { setEdit({ ...s }); setFile(null); }}>Edit</button>
+          <button onClick={async () => { if (!confirm('Delete this section?')) return; try { await api('/api/content', 'PUT', { key: 'custom-sections', value: items.filter((item) => item.id !== s.id) }); report('Section deleted'); load('Sections'); } catch (e: any) { report(e.message, true); } }}>Delete</button>
+        </div>)}</div>
+        {edit.id && <form className="checkout-form" onSubmit={async (e) => {
+          e.preventDefault();
+          try {
+            const section = { ...edit, sortOrder: Number(edit.sortOrder) || 0 };
+            const updated = [...items.filter((item) => item.id !== edit.id), section].sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
+            await api('/api/content', 'PUT', { key: 'custom-sections', value: updated });
+            setEdit({}); report('Section saved'); load('Sections');
+          } catch (err: any) { report(err.message, true); }
+        }}>
+          <h2>Section details</h2>
+          <label>Title<input required value={edit.title || ''} onChange={(e) => setEdit((v) => ({ ...v, title: e.target.value }))} /></label>
+          {field('eyebrow', 'Small heading')}
+          {field('description', 'Description', true)}
+          {field('image', 'Image URL')}
+          {field('sortOrder', 'Display order')}
+          <label><input type="checkbox" checked={edit.enabled !== false} onChange={(e) => setEdit((v) => ({ ...v, enabled: e.target.checked }))} /> Published</label>
+          {uploader('cruvita/banners')}
+          <button className="primary-button">Save Section</button>
+          <button type="button" onClick={() => setEdit({})}>Cancel</button>
+        </form>}
+      </>}
+
+      {tab === 'Our Story' && <form className="checkout-form" onSubmit={async (e) => {
+        e.preventDefault();
+        try { await api('/api/content', 'PUT', { key: 'our-story', value: story }); report('Our Story saved'); }
+        catch (err: any) { report(err.message, true); }
+      }}>
+        <p className="muted">Edit the Our Story page. Images can be uploaded from your device or entered as URLs. Use internal paths such as /shop for links.</p>
+        {[
+          ['Hero', ['heroEyebrow', 'heroHeading', 'heroDescription', 'heroImage']],
+          ['Heart of Cruvita', ['showHeart', 'heartHeading', 'heartDescription', 'heartImage', 'detailImage']],
+          ['Philosophy', ['showPhilosophy', 'philosophyHeading', 'card1Title', 'card1Description', 'card1Image', 'card2Title', 'card2Description', 'card2Image', 'card3Title', 'card3Description', 'card3Image']],
+          ['Lifestyle', ['showLifestyle', 'lifestyleHeading', 'lifestyleDescription', 'lifestyleImage', 'lifestyleButton', 'lifestyleLink']],
+          ['Collection', ['showCollection', 'collectionHeading', 'collectionDescription', 'collectionButton', 'collectionLink']],
+          ['Quote', ['showQuote', 'quote', 'quoteDescription']],
+          ['Final call to action', ['showFinal', 'finalEyebrow', 'finalHeading', 'finalDescription', 'finalImage', 'finalButton', 'finalLink', 'contactButton', 'contactLink']],
+        ].map(([heading, keys]) => <fieldset key={heading as string} style={{ border: '1px solid #ecd9ca', borderRadius: 12, padding: 18, margin: '15px 0' }}>
+          <legend>{heading as string}</legend>
+          {(keys as string[]).map((key) => {
+            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+            if (key.startsWith('show')) return <label key={key}><input type="checkbox" checked={story[key] !== false} onChange={(e) => setStory((v) => ({ ...v, [key]: e.target.checked }))} /> Show section</label>;
+            return <div key={key}>
+              <label>{label}{key.toLowerCase().includes('description')
+                ? <textarea value={story[key] || ''} onChange={(e) => setStory((v) => ({ ...v, [key]: e.target.value }))} />
+                : <input value={story[key] || ''} onChange={(e) => setStory((v) => ({ ...v, [key]: e.target.value }))} />}</label>
+              {key.endsWith('Image') && <input type="file" accept="image/*" aria-label={'Upload ' + label} disabled={busy} onChange={async (e) => {
+                const selected = e.target.files?.[0];
+                if (!selected) return;
+                setBusy(true);
+                try {
+                  const form = new FormData(); form.append('file', selected); form.append('folder', 'cruvita/banners');
+                  const response = await fetch('/api/upload', { method: 'POST', body: form });
+                  const result = await response.json();
+                  if (!response.ok) throw new Error(result.error || 'Upload failed');
+                  setStory((v) => ({ ...v, [key]: result.url })); report('Image uploaded. Save Our Story to publish it.');
+                } catch (err: any) { report(err.message, true); } finally { setBusy(false); }
+              }} />}
+            </div>;
+          })}
+        </fieldset>)}
+        <button className="primary-button" disabled={busy}>Save Our Story</button>
+      </form>}
 
       {tab === 'Policies' && <form className="checkout-form" onSubmit={saveSettings}>
         <h2>Policy editor</h2>
