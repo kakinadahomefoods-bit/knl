@@ -202,14 +202,16 @@ useEffect(() => {
     setWish((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
   }
 
-  const HIDDEN_CATEGORIES = new Set(['Cookies', 'Brownies', 'Gift Boxes', 'Bestsellers']);
-  const categoriesForNav = categories.length
-    ? categories.map((c) => c.name).filter((name) => !HIDDEN_CATEGORIES.has(name))
-    : ['Cookies'];
+  // Every category is available inside Shop All — there are no separate category pages.
+  const DEFAULT_CATEGORIES = ['Cookies', 'Brownies', 'Gift Boxes', 'Bestsellers'];
+  const categoriesForNav = Array.from(
+    new Set([...DEFAULT_CATEGORIES, ...categories.map((c) => c.name)])
+  );
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = products.filter((p) =>
-      (category === 'All' || p.category === category) &&
+      (category === 'All' || p.category === category ||
+        (category === 'Bestsellers' && (p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))))) &&
       (!q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)) &&
       (!minPrice || p.price >= Number(minPrice)) &&
       (!maxPrice || p.price <= Number(maxPrice)) &&
@@ -219,7 +221,7 @@ useEffect(() => {
     if (sort === 'price-desc') list.sort((a, b) => b.price - a.price);
     if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [products, category, search, sort]);
+  }, [products, category, search, sort, minPrice, maxPrice, inStockOnly]);
 
   const entries = cart.map((i) => ({ p: products.find((x) => x._id === i.id), qty: i.qty }))
     .filter((x): x is { p: P; qty: number } => Boolean(x.p));
@@ -401,34 +403,20 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
           {categoriesForNav.map((c) => {
             const cat = categories.find((x) => x.name === c);
             return <button className="category-card" key={c} onClick={() => { setCategory(c); navigate('shop'); }}>
-              {cat?.image ? <img src={cat.image} alt={c} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 12 }} /> : <span>🍪</span>}
+              {cat?.image ? <img src={cat.image} alt={c} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 12 }} />
+                : <span>{c === 'Brownies' ? '🍫' : c === 'Gift Boxes' ? '🎁' : c === 'Bestsellers' ? '⭐' : '🍪'}</span>}
               <h3>{c}</h3><b>Shop Now →</b>
             </button>;
           })}
         </div>
       </section>
-      <section className="section tinted">
-        <div className="section-heading"><div className="eyebrow">HANDPICKED FOR YOU</div><h2>Sweet <i>Favorites</i></h2><button className="link-button" onClick={() => navigate('shop')}>View All →</button></div>
-        {loading ? <p>Loading treats…</p> : <div className="product-grid">{(products.filter((p) => p.featured).length ? products.filter((p) => p.featured) : products).slice(0, 8).map(tile)}</div>}
-        {!loading && !products.length && <p className="center">Our catalogue is being prepared. Check back soon!</p>}
-      </section>
-
-      <section className="section">
-        <div className="section-heading"><div className="eyebrow">OUR BESTSELLERS</div><h2>Most <i>Loved</i> Treats</h2><button className="link-button" onClick={() => navigate('shop')}>View All →</button></div>
-        {loading ? <p>Loading treats…</p> : <div className="product-grid">{products.filter((p) => p.featured).slice(0, 8).map(tile)}</div>}
-      </section>
-
-      <section className="section tinted">
-        <div className="section-heading"><div className="eyebrow">COMPLETE RANGE</div><h2>Our Full <i>Range</i></h2><button className="link-button" onClick={() => navigate('shop')}>View All →</button></div>
-        {loading ? <p>Loading treats…</p> : <div className="product-grid">{products.slice(0, 8).map(tile)}</div>}
-      </section>
 
       <section className="section promo-section">
         <div className="promo-grid">
-          <button className="promo-card" onClick={() => navigate('shop')} style={{ backgroundImage: 'url(/Cookies_Brownies_Banner.png)' }}>
-            <span>Cookies & Brownies</span>
+          <button className="promo-card" onClick={() => { setCategory('All'); navigate('shop'); }} style={{ backgroundImage: 'url(/Cookies_Brownies_Banner.png)' }}>
+            <span>Cookies & Brownies — Shop All</span>
           </button>
-          <button className="promo-card" onClick={() => navigate('shop')} style={{ backgroundImage: 'url(/Gift_Boxes_Banner.png)' }}>
+          <button className="promo-card" onClick={() => { setCategory('Gift Boxes'); navigate('shop'); }} style={{ backgroundImage: 'url(/Gift_Boxes_Banner.png)' }}>
             <span>Gift Boxes</span>
           </button>
         </div>
@@ -526,6 +514,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
           <p>{selected.description}</p>
           {(selected.variants?.length ?? 0) > 0 && <div className="muted tiny">Variants: {selected.variants?.map((v: any) => v.name).join(', ')}</div>}
           <p>{selected.stock > 0 ? <><ShieldCheck size={15} /> {selected.stock} available</> : 'Currently sold out'}</p>
+          <div className="trust trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
           <div className="detail-actions">
             <button className="primary-button" disabled={selected.stock < 1} onClick={() => add(selected._id)}>Add to Bag →</button>
             <button className="outline-button" onClick={() => toggleWish(selected._id)}>
@@ -649,7 +638,7 @@ const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.png'];
         <div>
           <h4>Shop</h4>
           <button onClick={() => { setCategory('All'); navigate('shop'); }}>Shop All</button>
-          <button onClick={() => { setCategory('Cookies'); navigate('shop'); }}>Cookies</button>
+          {categoriesForNav.map((c) => <button key={c} onClick={() => { setCategory(c); navigate('shop'); }}>{c}</button>)}
         </div>
         <div>
           <h4>Help</h4>
