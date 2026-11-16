@@ -5,6 +5,7 @@
 export function mongoErrorSummary(error: unknown) {
   const names = new Set<string>();
   const codes = new Set<string>();
+  const hints = new Set<string>();
   const seen = new Set<unknown>();
   function visit(value: unknown, depth: number) {
     if (!value || typeof value !== 'object' || seen.has(value) || depth > 4) return;
@@ -13,6 +14,14 @@ export function mongoErrorSummary(error: unknown) {
     if (typeof item.name === 'string' && /^[A-Za-z][A-Za-z0-9]{0,80}$/.test(item.name)) names.add(item.name);
     if ((typeof item.code === 'number' && Number.isInteger(item.code)) ||
         (typeof item.code === 'string' && /^[A-Z][A-Z0-9_]{0,30}$/.test(item.code))) codes.add(String(item.code));
+    if (typeof item.message === 'string') {
+      if (/timed?\s*out|timeout/i.test(item.message)) hints.add('TIMEOUT');
+      if (/tls|ssl|certificate/i.test(item.message)) hints.add('TLS_OR_CERTIFICATE');
+      if (/whitelist|allow.?list|ip address/i.test(item.message)) hints.add('ATLAS_NETWORK_ACCESS');
+      if (/authentication failed|bad auth/i.test(item.message)) hints.add('AUTHENTICATION_FAILED');
+      if (/dns|enotfound|querysrv/i.test(item.message)) hints.add('DNS');
+      if (/econnrefused|connection refused/i.test(item.message)) hints.add('CONNECTION_REFUSED');
+    }
     visit(item.cause, depth + 1);
     visit(item.reason, depth + 1);
     visit(item.error, depth + 1);
@@ -21,5 +30,5 @@ export function mongoErrorSummary(error: unknown) {
     }
   }
   visit(error, 0);
-  return { names: [...names], codes: [...codes] };
+  return { names: [...names], codes: [...codes], hints: [...hints] };
 }
