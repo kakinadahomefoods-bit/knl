@@ -1,0 +1,3 @@
+import {db} from '@/lib/db';import {Content} from '@/lib/models';import {isAdmin,adminDenied} from '@/lib/security';
+export async function GET(){if(!(await isAdmin()))return adminDenied();await db();return Response.json({settings:((await Content.findOne({key:'settings'}).lean()) as any)?.value||{}})}
+export async function PUT(req:Request){if(!(await isAdmin()))return adminDenied();const value=await req.json();if(!value||typeof value!=='object'||JSON.stringify(value).length>30000)return Response.json({error:'Invalid settings'},{status:400});await db();await Content.findOneAndUpdate({key:'settings'},{$set:{value}},{upsert:true});return Response.json({ok:true})}

@@ -1,0 +1,13 @@
+node_modules
+.next
+.next-smoke
+.test-build
+.env
+.env.local
+.env.*.local
+*.log
+*.tsbuildinfo
+*.bak
+test-results
+playwright-report
+.DS_Store

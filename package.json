@@ -1,0 +1,35 @@
+{
+  "name": "cruvita-cookies",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "npm run test:compile && node --test tests/*.test.mjs",
+    "test:compile": "tsc -p tsconfig.test.json",
+    "test:integration": "node scripts/smoke-test.mjs",
+    "create-admin": "node --env-file=.env.local scripts/create-admin.mjs",
+    "seed:content": "node --env-file=.env.local scripts/seed-content.mjs",
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "cloudinary": "^2.5.0",
+    "lucide-react": "^0.468.0",
+    "mongoose": "^8.12.0",
+    "next": "^15.3.0",
+    "razorpay": "^2.9.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "mongodb-memory-server": "^11.3.0",
+    "typescript": "^5.7.0"
+  }
+}

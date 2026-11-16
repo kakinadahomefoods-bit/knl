@@ -1,0 +1,2 @@
+import {db} from '@/lib/db';import {Order,Product} from '@/lib/models';import {isAdmin,adminDenied} from '@/lib/security';
+export async function GET(){if(!(await isAdmin()))return adminDenied();await db();const [products,orders,revenue,pending]=await Promise.all([Product.countDocuments(),Order.countDocuments(),Order.aggregate([{$match:{paymentStatus:'paid'}},{$group:{_id:null,total:{$sum:'$total'}}}]),Order.countDocuments({fulfillmentStatus:'unfulfilled',paymentStatus:'paid'})]);return Response.json({products,orders,revenue:revenue[0]?.total||0,pending})}

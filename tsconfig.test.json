@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "outDir": ".test-build",
+    "rootDir": "lib"
+  },
+  "include": ["lib/pricing.ts", "lib/validation.ts", "lib/simulation.ts"]
+}

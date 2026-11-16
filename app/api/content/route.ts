@@ -1,0 +1,3 @@
+import {db} from '@/lib/db';import {Content} from '@/lib/models';import {isAdmin,adminDenied,clean} from '@/lib/security';
+export async function GET(){try{await db();return Response.json({content:await Content.find().lean()})}catch{return Response.json({content:[]},{status:503})}}
+export async function PUT(req:Request){if(!(await isAdmin()))return adminDenied();try{const {key,value}=await req.json();await db();const item=await Content.findOneAndUpdate({key:clean(key)},{$set:{value}},{upsert:true,new:true});return Response.json({item})}catch{return Response.json({error:'Save failed'},{status:400})}}
