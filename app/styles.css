@@ -92,3 +92,64 @@
   align-items: center;
   text-align: center;
 }
+
+/* Responsive layout and interaction refinements */
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #a54c40;outline-offset:3px}
+.navwrap,.page-shell,.admin-main,.shop-layout,.checkout-grid,.detail,.contact-content{min-width:0}
+.nav-actions{align-items:center;gap:clamp(2px,1vw,15px)}
+.nav-actions .iconbtn,.mobile-only.iconbtn{min-width:44px;min-height:44px;display:grid;place-items:center}
+.mobile-only.iconbtn{display:none}
+.product-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(12px,1.8vw,22px)}
+.product-card{min-width:0;display:flex;flex-direction:column}
+.product-photo{height:auto;aspect-ratio:1/1;overflow:hidden}
+.product-info{min-width:0;display:flex;flex:1;flex-direction:column}
+.product-title{min-width:0;overflow-wrap:anywhere}
+.product-info .price{margin-bottom:12px}
+.product-info .outline-button{margin-top:auto}
+.product-info .outline-button,.product-buy-now{min-height:44px}
+.checkout-form input,.checkout-form textarea,.checkout-form select,.contact-form-card input,.contact-form-card select,.contact-form-card textarea{min-width:0;max-width:100%}
+.gallery-thumbs{overflow-x:auto;max-width:100%;padding-bottom:6px}
+.gallery-thumbs button{flex:0 0 64px}
+.mobile-filter-toggle,.admin-menu-toggle{display:none}
+.admin-sidebar{flex-shrink:0}
+.admin-line>span{min-width:0;overflow-wrap:anywhere}
+.admin-main img{max-width:100%}
+@media(min-width:1600px){.page-shell{max-width:1500px}.product-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:1100px){.nav{gap:12px}.navwrap{gap:12px}.product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){
+ .navwrap{position:relative;gap:8px}
+ .mobile-only.iconbtn{display:grid}
+ .nav.open{max-height:calc(100dvh - 70px);overflow-y:auto;align-items:stretch;gap:0}
+ .nav.open button{min-height:44px;text-align:left}
+ .hero.hero-slider{padding-left:clamp(20px,5vw,48px);padding-right:20px;background-position:65% center}
+ .hero.hero-slider .hero-overlay{max-width:min(100%,680px)}
+ .hero.hero-slider .hero-overlay h1{font-size:clamp(36px,7vw,64px)}
+ .checkout-grid,.detail{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:700px){
+ .page-shell{padding:42px 16px 64px}
+ .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .product-info{padding:12px}
+ .product-title{font-size:clamp(14px,3.8vw,17px);line-height:1.3;min-height:0}
+ .product-info .price{font-size:14px}
+ .product-photo span{font-size:clamp(55px,18vw,85px)}
+ .mobile-filter-toggle{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;width:100%}
+ .shop-layout .filter-panel{display:none}
+ .shop-layout .filter-panel--open{display:flex}
+ .shop-layout .filter-panel input[type=number]{font-size:16px}
+ .detail-actions{max-width:none}
+ .checkout-form input,.checkout-form textarea,.checkout-form select,.contact-form-card input,.contact-form-card textarea,.contact-form-card select{font-size:16px}
+ .admin{display:block;padding-top:55px}
+ .admin-menu-toggle{position:fixed;z-index:51;top:0;left:0;width:100%;height:55px;display:flex;align-items:center;justify-content:space-between;border:0;padding:0 18px;background:#452a24;color:#fff;font-weight:700}
+ .admin-sidebar{display:none;position:fixed;z-index:50;top:55px;left:0;bottom:0;width:min(290px,85vw);padding:18px;overflow-y:auto;box-shadow:10px 0 30px #0003}
+ .admin-sidebar--open{display:flex}
+ .admin-sidebar .admin-logo{font-size:24px;padding:10px 13px 24px}
+ .admin-sidebar .admin-logo small{display:block}
+ .admin-sidebar a{font-size:13px;justify-content:flex-start}
+ .admin-main{padding:24px 16px}
+ .admin-panel{min-width:0;max-width:100%;padding:16px;overflow:auto}
+ .admin-line{align-items:flex-start}
+ .admin-line>span{flex:1 1 100%}
+}
+@media(max-width:380px){.header-logo{width:100px}.navwrap{padding:0 10px}.nav-actions{gap:0}.product-info{padding:10px}.product-info .outline-button,.product-buy-now{font-size:12px;padding:10px 5px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.hero.hero-slider,.product-photo img,.product-photo span{transition:none}}

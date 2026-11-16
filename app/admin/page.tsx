@@ -21,6 +21,7 @@ const MEDIA_FOLDERS = [
 export default function Admin() {
   const [logged, setLogged] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState('Dashboard');
@@ -37,6 +38,12 @@ export default function Admin() {
   const [uploadTarget, setUploadTarget] = useState<'edit' | 'homepage' | 'settings'>('edit');
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<Any | null>(null);
+
+  useEffect(() => {
+    function closeMenu(event: KeyboardEvent) { if (event.key === 'Escape') setMenuOpen(false); }
+    window.addEventListener('keydown', closeMenu);
+    return () => window.removeEventListener('keydown', closeMenu);
+  }, []);
 
   function report(text: string, error = false) { setMsg(text); setIsError(error); }
 
@@ -96,7 +103,7 @@ export default function Admin() {
     } catch (e: any) { report(e.message, true); }
   }
 
-  function selectTab(s: string) { setTab(s); setEdit({}); setDetail(null); setMsg(''); load(s); }
+  function selectTab(s: string) { setTab(s); setEdit({}); setDetail(null); setMsg(''); setMenuOpen(false); load(s); }
 
   async function upload(targetFolder = folder, target: 'edit' | 'homepage' | 'settings' = uploadTarget) {
     if (!file) return report('Choose an image first', true);
@@ -216,7 +223,8 @@ export default function Admin() {
   </main>;
 
   return <div className="admin">
-    <aside className="admin-sidebar">
+    <button className="admin-menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="admin-navigation" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? 'Close menu' : 'Admin menu'} <span aria-hidden="true">{menuOpen ? '×' : '☰'}</span></button>
+    <aside id="admin-navigation" className={`admin-sidebar${menuOpen ? ' admin-sidebar--open' : ''}`}>
       <div className="admin-logo"><img src="/cruvita-logo-transparent.png" alt="Cruvita Cookies" className="admin-sidebar-logo" /><small>STORE ADMIN</small></div>
       {SECTIONS.map((s) => <button className={tab === s ? 'selected' : ''} key={s} onClick={() => selectTab(s)}>{s}</button>)}
       <button onClick={async () => { await api('/api/admin/logout', 'POST'); setLogged(false); }}>Sign out</button>

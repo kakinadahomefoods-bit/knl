@@ -58,6 +58,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [loading, setLoading] = useState(true);
   const [catalogueError, setCatalogueError] = useState('');
   const [menu, setMenu] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('new');
@@ -155,6 +156,14 @@ const [heroIndex, setHeroIndex] = useState(0);
     };
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
+  }, []);
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') { setMenu(false); setFiltersOpen(false); }
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
   }, []);
 
   useEffect(() => { localStorage.setItem('cruvita-cart', JSON.stringify(cart)); }, [cart]);
@@ -377,11 +386,11 @@ useEffect(() => {
     <div className="announcement">{settings.announcement || 'Sweet moments, freshly baked • Cruvita Cookies'}</div>
     <header className="header">
       <div className="navwrap">
-        <button className="mobile-only iconbtn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
+        <button className="mobile-only iconbtn" onClick={() => setMenu(!menu)} aria-label={menu ? 'Close menu' : 'Open menu'} aria-expanded={menu} aria-controls="store-navigation">{menu ? <X /> : <Menu />}</button>
         <button className="brand" onClick={() => navigate('home')}>
           <img src={settings.logo || '/cruvita-logo-transparent.png'} alt="Cruvita Cookies" className="header-logo" />
         </button>
-        <nav className={menu ? 'nav open' : 'nav'}>
+        <nav id="store-navigation" className={menu ? 'nav open' : 'nav'} aria-label="Main navigation">
           <button onClick={() => navigate('home')}>Home</button>
           <button onClick={() => { setCategory('All'); navigate('shop'); }}>Shop All</button>
           {categoriesForNav.filter((c) => !['Cookies', 'Brownies', 'Gift Boxes', 'Bestsellers'].includes(c)).map((c) => <button key={c} onClick={() => { setCategory(c); navigate('shop'); }}>{c}</button>)}
@@ -389,6 +398,7 @@ useEffect(() => {
           <button onClick={() => navigate('contact')}>Contact</button>
         </nav>
         <div className="nav-actions">
+          <button className="iconbtn" aria-label="Search products" onClick={() => { setFiltersOpen(true); navigate('shop'); }}><Search /></button>
           <button className="iconbtn bag" aria-label="Shopping bag" onClick={() => navigate('cart')}>
             <ShoppingBag />{cartCount > 0 && <b>{cartCount}</b>}
           </button>
@@ -492,7 +502,10 @@ useEffect(() => {
       <div className="eyebrow">DISCOVER THE GOODNESS</div>
       <h1>Our Sweet <i>Collection</i></h1>
       <div className="shop-layout">
-      <aside className="filter-panel" aria-label="Product filters">
+      <button className="mobile-filter-toggle outline-button" type="button" aria-expanded={filtersOpen} aria-controls="shop-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
+        <SlidersHorizontal size={17} /> {filtersOpen ? 'Hide filters' : 'Search & filters'}
+      </button>
+      <aside id="shop-filters" className={`filter-panel${filtersOpen ? ' filter-panel--open' : ''}`} aria-label="Product filters">
         <h2>Filters</h2>
         <label className="search"><Search size={17} /><input aria-label="Search treats" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search treats…" /></label>
         <div className="filter-categories"><strong>Category</strong><div className="chips">{['All', ...categoriesForNav].map((c) => <button key={c} className={category === c ? 'active' : ''} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}</div></div>
