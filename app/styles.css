@@ -44,7 +44,22 @@
 @media (prefers-reduced-motion:reduce){.product-card,.product-card:hover,.product-photo span,.product-photo img{transition:none;transform:none}.product-card::before{display:none}}
 
 /* Contact page */
+.header-logo{display:block;width:120px;max-width:100%;height:58px;object-fit:contain}
+.footer-logo{display:block;width:170px;max-width:100%;height:auto;margin-bottom:16px;filter:drop-shadow(0 0 2px #ffe8cd) drop-shadow(0 0 1px #ffe8cd)}
 .contact-page{background:#fffaf3}
+.store-benefits{padding:28px max(24px,calc((100% - 1240px)/2));background:#fffaf4}
+.store-benefits-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #edd9cb;border-radius:20px;background:#fffdf9;box-shadow:0 12px 40px rgba(91,49,31,.06);overflow:hidden}
+.store-benefit{display:flex;align-items:flex-start;gap:15px;min-width:0;padding:24px 20px}
+.store-benefit+.store-benefit{border-left:1px solid #f0e3da}
+.store-benefit-icon{display:grid;place-items:center;flex:none;width:46px;height:46px;color:#a95d49;background:#fae9df;border-radius:14px}
+.store-benefit-copy{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0}
+.store-benefit-note{display:flex;align-items:center;gap:5px;color:#aa715f;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.store-benefit-copy strong{font-family:'Playfair Display',serif;font-size:17px;line-height:1.2;color:#513027}
+.store-benefit-detail{color:#826c64;font-size:12px;line-height:1.45}
+.store-benefits--compact{padding:24px 0;background:transparent}
+.store-benefits--compact .store-benefit{padding:18px 14px;gap:10px}
+@media(max-width:1000px){.store-benefits-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.store-benefit:nth-child(3){border-left:0}.store-benefit:nth-child(n+3){border-top:1px solid #f0e3da}}
+@media(max-width:480px){.store-benefits{padding:20px 16px}.store-benefits--compact{padding:20px 0}.store-benefit,.store-benefits--compact .store-benefit{padding:16px 10px;gap:9px}.store-benefit-icon{width:36px;height:36px;border-radius:11px}.store-benefit-copy strong{font-size:15px}.store-benefit-note{font-size:9px;letter-spacing:0}.store-benefit-detail{font-size:11px}}
 .contact-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:32px;min-height:400px;padding:90px max(8vw,calc((100vw - 1200px)/2));background:linear-gradient(90deg,rgba(255,247,232,.95) 0%,rgba(255,247,232,.82) 38%,rgba(255,247,232,0) 75%),url('/contact-banner.webp') center/cover no-repeat}
 .contact-hero-inner{max-width:680px;position:relative;z-index:1}
 .contact-hero h1{margin:0 0 20px;line-height:1.08}.contact-hero h1 i,.contact-content h2 i{color:#ad6557}

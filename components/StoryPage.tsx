@@ -9,17 +9,21 @@ type Props = { content: Record<string, any>; products: Product[]; loading: boole
 
 export default function StoryPage({ content, products, loading, tile }: Props) {
   const s = { ...storyDefaults, ...content } as Record<string, any>;
-  const ranked = [...products].sort((a, b) => {
-    const rank = (name: string) => {
-      const n = name.toLowerCase();
-      if (/chocolate chip/.test(n) && !/double/.test(n)) return 0;
-      if (/double.*chocolate/.test(n)) return 1;
-      if (/red velvet/.test(n)) return 2;
-      if (/brownie/.test(n)) return 3;
-      return 4;
-    };
-    return rank(a.name) - rank(b.name);
-  }).slice(0, 4);
+  const matches = [
+    (n: string) => /chocolate chip/.test(n) && !/double/.test(n),
+    (n: string) => /double.*chocolate/.test(n),
+    (n: string) => /red velvet/.test(n),
+    (n: string) => /brownie/.test(n),
+  ];
+  const ranked: Product[] = [];
+  for (const match of matches) {
+    const product = products.find((p) => match(p.name.toLowerCase()) && !ranked.some((item) => item._id === p._id));
+    if (product) ranked.push(product);
+  }
+  for (const product of products) {
+    if (ranked.length >= 4) break;
+    if (!ranked.some((item) => item._id === product._id)) ranked.push(product);
+  }
   const photo = (src: string, alt: string, cls = '', eager = false) =>
     <div className={'story-photo ' + cls}><img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" /></div>;
   // Only internal paths are accepted for editable calls to action.

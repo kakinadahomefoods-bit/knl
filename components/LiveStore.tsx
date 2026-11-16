@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryPage from './StoryPage';
 import ContactPage from '@/components/ContactPage';
+import StoreBenefits from '@/components/StoreBenefits';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
   ShieldCheck, Mail, Phone, Copy, Check, Package, AlertTriangle, MapPin,
@@ -384,7 +385,7 @@ useEffect(() => {
       <div className="navwrap">
         <button className="mobile-only iconbtn" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
         <button className="brand" onClick={() => navigate('home')}>
-          <img src={settings.logo || "/newlogo.jpeg"} alt="Cruvita Cookies" width={87} height={58} style={{ height: 58, maxWidth: 120, width: 'auto', objectFit: 'contain' }} />
+          <img src={settings.logo || '/cruvita-logo-transparent.png'} alt="Cruvita Cookies" className="header-logo" />
         </button>
         <nav className={menu ? 'nav open' : 'nav'}>
           <button onClick={() => navigate('home')}>Home</button>
@@ -416,8 +417,7 @@ useEffect(() => {
           {heroSlidesFinal.map((_, i) => <button key={i} className={i === heroIndex ? 'active' : ''} onClick={() => setHeroIndex(i)} aria-label={'Slide ' + (i + 1)} />)}
         </div>}
       </section>
-      <div className="trust"><span>✦ Thoughtfully Baked</span><span>♡ Made with Care</span><span>♧ Perfect for Gifting</span><span>✧ Delivered with Love</span></div>
-      <div className="trust trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
+      <StoreBenefits />
       <section className="section">
         <div className="section-heading section-heading-centered"><div className="eyebrow">EXPLORE OUR COLLECTIONS</div><h2>Shop by <i>Category</i></h2></div>
         <div className="category-grid">
@@ -535,8 +535,7 @@ useEffect(() => {
       </div>
       </div>
 
-      <div className="trust trust-shop"><span>✦ Thoughtfully Baked</span><span>♡ Made with Care</span><span>♧ Perfect for Gifting</span><span>✧ Delivered with Love</span><span>🛡️ Secure Checkout</span><span>🚚 Fresh Delivery</span></div>
-      <div className="trust trust-shop trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
+      <StoreBenefits compact />
 
       <section className="section">
         <div className="section-heading"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
@@ -576,7 +575,7 @@ useEffect(() => {
           <p>{selected.description}</p>
           {(selected.variants?.length ?? 0) > 0 && <div className="muted tiny">Variants: {selected.variants?.map((v: any) => v.name).join(', ')}</div>}
           <p>{selected.stock > 0 ? <><ShieldCheck size={15} /> {selected.stock} available</> : 'Currently sold out'}</p>
-          <div className="trust trust-usp"><span>Baked to Order</span><span>Never off a shelf</span><span>Real Ingredients</span><span>Butter, chocolate &amp; dry fruits</span><span>FSSAI Certified</span><span>Lic. 23625014000747</span><span>Pan-India Delivery</span><span>Shipped via Delhivery</span></div>
+          <StoreBenefits compact />
           <div className="detail-actions">
             <button className="primary-button" disabled={selected.stock < 1} onClick={() => add(selected._id)}>Add to Bag →</button>
             <button className="outline-button" onClick={() => toggleWish(selected._id)}>
@@ -682,7 +681,7 @@ useEffect(() => {
     <footer className="footer">
       <div className="footer-grid">
         <div>
-          <div className="footer-brand">✿ Cruvita Cookies</div>
+          <img src={settings.logo || '/cruvita-logo-transparent.png'} alt="Cruvita Cookies" className="footer-logo" />
           <p>[Placeholder brand description. Small-batch cookies and brownies, baked to order. Made with love, baked for you.]</p>
         </div>
         <div>
