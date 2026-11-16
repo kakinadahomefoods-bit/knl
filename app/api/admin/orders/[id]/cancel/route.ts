@@ -21,7 +21,7 @@ export async function POST(req: Request, c: { params: Promise<{ id: string }> })
     return Response.json({ error: 'Cancel the live shipment in Delhivery first' }, { status: 409 });
   }
 
-  if (order.inventoryCommitted && !order.restocked) {
+  if (order.inventoryCommitted && order.inventoryMode !== 'unlimited' && !order.restocked) {
     for (const item of order.items) {
       await Product.updateOne({ _id: item.productId }, { $inc: { stock: item.qty } });
     }

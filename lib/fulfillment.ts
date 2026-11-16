@@ -14,7 +14,7 @@ export type FinalizeMeta = {
  * Idempotent finalization:
  *  - marks the order paid exactly once
  *  - records a Payment document (duplicate payment ids are rejected by a unique index)
- *  - atomically decrements stock for all lines (all-or-nothing transaction)
+ *  - atomically decrements stock for legacy tracked orders; new unlimited orders skip stock
  *  - commits coupon usage inside the same transaction
  *  - records honest notification status for the confirmation emails
  */
@@ -77,13 +77,15 @@ export async function finalizePayment(razorpayOrderId: string, meta: FinalizeMet
       );
       if (!claim) return;
 
-      for (const item of claim.items) {
-        const updated = await Product.updateOne(
-          { _id: item.productId, stock: { $gte: item.qty } },
-          { $inc: { stock: -item.qty } },
-          { session }
-        );
-        if (!updated.modifiedCount) throw new Error('Insufficient inventory for ' + item.name);
+      if (claim.inventoryMode !== 'unlimited') {
+        for (const item of claim.items) {
+          const updated = await Product.updateOne(
+            { _id: item.productId, stock: { $gte: item.qty } },
+            { $inc: { stock: -item.qty } },
+            { session }
+          );
+          if (!updated.modifiedCount) throw new Error('Insufficient inventory for ' + item.name);
+        }
       }
 
       if (claim.coupon && !claim.couponCommitted) {

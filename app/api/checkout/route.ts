@@ -84,8 +84,8 @@ export async function POST(req: Request) {
     for (const item of body.items) {
       const p = await Product.findById(item.id);
       const qty = Number(item.qty);
-      if (!p || !p.published || p.stock < qty) {
-        return Response.json({ error: 'Item unavailable or insufficient stock' }, { status: 409 });
+      if (!p || !p.published) {
+        return Response.json({ error: 'Item unavailable' }, { status: 409 });
       }
       subtotal += p.price * qty;
       items.push({
@@ -141,6 +141,7 @@ export async function POST(req: Request) {
           pin: clean(c.pin, 10),
         },
         items,
+        inventoryMode: 'unlimited',
         subtotal: pricing.subtotal,
         shipping: pricing.shipping,
         discount: pricing.discount,

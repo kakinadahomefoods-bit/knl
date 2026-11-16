@@ -116,6 +116,7 @@ const order = new Schema(
     },
     notifications: { type: [notification], default: [] },
     inventoryCommitted: { type: Boolean, default: false },
+    inventoryMode: { type: String, enum: ['tracked', 'unlimited'], default: 'tracked' },
     inventoryError: String,
     couponCommitted: { type: Boolean, default: false },
     refundAmount: { type: Number, default: 0 },

@@ -45,7 +45,7 @@ export async function POST(req: Request, c: { params: Promise<{ id: string }> })
     if (fullyRefunded) order.fulfillmentStatus = 'refunded';
 
     // Restock inventory on full refund if committed and not already restocked.
-    if (fullyRefunded && order.inventoryCommitted && !order.restocked) {
+    if (fullyRefunded && order.inventoryCommitted && order.inventoryMode !== 'unlimited' && !order.restocked) {
       for (const item of order.items) {
         await Product.updateOne({ _id: item.productId }, { $inc: { stock: item.qty } });
       }

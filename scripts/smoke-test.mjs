@@ -157,7 +157,7 @@ async function main() {
   await check('Admin creates a product in MongoDB', async () => {
     const r = await api('/api/products', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Smoke Test Cookie', slug: 'smoke-test-cookie', category: 'Cookies', description: 'Temporary test product', price: 250, stock: 5, published: true }),
+      body: JSON.stringify({ name: 'Smoke Test Cookie', slug: 'smoke-test-cookie', category: 'Cookies', description: 'Temporary test product', price: 250, stock: 0, published: true }),
     }, cookie);
     expect(r.status === 201, 'status ' + r.status + ' ' + JSON.stringify(r.body));
     productId = r.body.product._id;
@@ -236,9 +236,9 @@ async function main() {
     expect(r.body.order.paymentStatus === 'paid', 'order not paid');
     tracked = r.body;
   });
-  await check('Inventory decremented after finalization', async () => {
+  await check('Unlimited order leaves tracked stock unchanged', async () => {
     const r = await api('/api/products/' + productId);
-    expect(r.body.product.stock === 3, 'stock is ' + r.body.product.stock);
+    expect(r.body.product.stock === 0, 'stock is ' + r.body.product.stock);
   });
   await check('Payment record is stored', async () => {
     const r = await api('/api/admin/payments', {}, cookie);

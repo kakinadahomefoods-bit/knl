@@ -191,7 +191,7 @@ export default function Admin() {
     <div className="admin-login-card">
       <div className="admin-login-form-side">
         <Link className="admin-login-brand" href="/" aria-label="Cruvita Cookies storefront">
-          <img src="/newlogo.jpeg" alt="Cruvita Cookies" />
+          <img src="/cruvita-logo-transparent.png" alt="Cruvita Cookies" />
         </Link>
         <div className="admin-login-content">
           <span className="admin-login-eyebrow">CRUVITA COOKIES · STORE ADMIN</span>
@@ -217,7 +217,7 @@ export default function Admin() {
 
   return <div className="admin">
     <aside className="admin-sidebar">
-      <div className="admin-logo">✿ Cruvita Cookies <small>STORE ADMIN</small></div>
+      <div className="admin-logo"><img src="/cruvita-logo-transparent.png" alt="Cruvita Cookies" className="admin-sidebar-logo" /><small>STORE ADMIN</small></div>
       {SECTIONS.map((s) => <button className={tab === s ? 'selected' : ''} key={s} onClick={() => selectTab(s)}>{s}</button>)}
       <button onClick={async () => { await api('/api/admin/logout', 'POST'); setLogged(false); }}>Sign out</button>
       <Link href="/">← Back to Store</Link>

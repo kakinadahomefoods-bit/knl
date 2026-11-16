@@ -63,7 +63,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [sort, setSort] = useState('new');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  const [inStockOnly, setInStockOnly] = useState(false);
   const [selected, setSelected] = useState<P | null>(null);
   const [gallery, setGallery] = useState(0);
 const [heroIndex, setHeroIndex] = useState(0);
@@ -225,14 +224,13 @@ useEffect(() => {
         (category === 'Bestsellers' && (p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))))) &&
       (!q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)) &&
       (!minPrice || p.price >= Number(minPrice)) &&
-      (!maxPrice || p.price <= Number(maxPrice)) &&
-      (!inStockOnly || (p.stock ?? 0) > 0)
+      (!maxPrice || p.price <= Number(maxPrice))
     );
     if (sort === 'price-asc') list.sort((a, b) => a.price - b.price);
     if (sort === 'price-desc') list.sort((a, b) => b.price - a.price);
     if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [products, category, search, sort, minPrice, maxPrice, inStockOnly]);
+  }, [products, category, search, sort, minPrice, maxPrice]);
 
   const entries = cart.map((i) => ({ p: products.find((x) => x._id === i.id), qty: i.qty }))
     .filter((x): x is { p: P; qty: number } => Boolean(x.p));
@@ -366,10 +364,10 @@ useEffect(() => {
           <div className="muted tiny">{p.category}</div>
           <button className="product-title" onClick={() => openProduct(p)}>{p.name}</button>
           <div className="price">₹{p.price} {p.compareAt && <del>₹{p.compareAt}</del>}</div>
-          <button className="outline-button" disabled={p.stock < 1} onClick={() => add(p._id)}>
-            {p.stock < 1 ? 'Sold Out' : 'Add to Bag +'}
+          <button className="outline-button" onClick={() => add(p._id)}>
+            Add to Bag +
           </button>
-          <button className="primary-button product-buy-now" disabled={p.stock < 1} onClick={() => buyNow(p._id)}>Buy Now</button>
+          <button className="primary-button product-buy-now" onClick={() => buyNow(p._id)}>Buy Now</button>
         </div>
       </article>
     );
@@ -500,8 +498,7 @@ useEffect(() => {
         <div className="filter-categories"><strong>Category</strong><div className="chips">{['All', ...categoriesForNav].map((c) => <button key={c} className={category === c ? 'active' : ''} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}</div></div>
         <label>Min price (₹)<input type="number" min="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="0" /></label>
         <label>Max price (₹)<input type="number" min="0" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Any" /></label>
-        <label className="filter-check"><input type="checkbox" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} /> In stock only</label>
-        <button className="outline-button" type="button" onClick={() => { setMinPrice(''); setMaxPrice(''); setInStockOnly(false); setCategory('All'); setSearch(''); }}>Clear filters</button>
+        <button className="outline-button" type="button" onClick={() => { setMinPrice(''); setMaxPrice(''); setCategory('All'); setSearch(''); }}>Clear filters</button>
       </aside>
       <div className="shop-results">
       <div className="filter-bar">
@@ -538,10 +535,9 @@ useEffect(() => {
           <div className="price big">₹{selected.price} {selected.compareAt && <del>₹{selected.compareAt}</del>}</div>
           <p>{selected.description}</p>
           {(selected.variants?.length ?? 0) > 0 && <div className="muted tiny">Variants: {selected.variants?.map((v: any) => v.name).join(', ')}</div>}
-          <p>{selected.stock > 0 ? <><ShieldCheck size={15} /> {selected.stock} available</> : 'Currently sold out'}</p>
           <div className="detail-actions">
-            <button className="primary-button" disabled={selected.stock < 1} onClick={() => add(selected._id)}>Add to Bag →</button>
-            <button className="outline-button" disabled={selected.stock < 1} onClick={() => buyNow(selected._id)}>Buy Now →</button>
+            <button className="primary-button" onClick={() => add(selected._id)}>Add to Bag →</button>
+            <button className="outline-button" onClick={() => buyNow(selected._id)}>Buy Now →</button>
           </div>
         </div>
       </div>
