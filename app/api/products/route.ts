@@ -3,6 +3,7 @@ import { Product, Category } from '@/lib/models';
 import { isAdmin, adminDenied, clean } from '@/lib/security';
 import { optimizedImageUrl } from '@/lib/cloudinary';
 import { slugify } from '@/lib/validation';
+import { mongoErrorSummary } from '@/lib/mongo-diagnostics';
 
 export const runtime = 'nodejs';
 
@@ -69,10 +70,10 @@ export async function GET(req: Request) {
   } catch (error) {
     // Never log connection strings or raw driver messages, which may contain credentials.
     const kind = !process.env.MONGODB_URI ? 'MONGODB_URI_MISSING'
-      : error instanceof Error && error.name === 'MongoServerSelectionError' ? 'MONGODB_SERVER_SELECTION_FAILED'
+      : error instanceof Error && ['MongoServerSelectionError', 'MongooseServerSelectionError'].includes(error.name) ? 'MONGODB_SERVER_SELECTION_FAILED'
       : error instanceof Error && error.name === 'MongoServerError' ? 'MONGODB_SERVER_ERROR'
       : 'PRODUCT_QUERY_FAILED';
-    console.error('[products] Catalogue request failed:', kind);
+    console.error('[products] Catalogue request failed:', kind, mongoErrorSummary(error));
     return Response.json({ error: 'Database unavailable' }, { status: 503 });
   }
 }

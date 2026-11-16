@@ -4,6 +4,7 @@ import { verifyPassword, sign, sessionVersion } from '@/lib/security';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
+import { mongoErrorSummary } from '@/lib/mongo-diagnostics';
 
 export async function POST(req: Request) {
   let input: any;
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: true });
   } catch (error) {
     // Log only the error class, never the URI, credentials, or driver message.
-    console.error('[admin/login] Login service failed:', error instanceof Error ? error.name : 'UnknownError');
+    console.error('[admin/login] Login service failed:', mongoErrorSummary(error));
     return Response.json({ error: 'Login service temporarily unavailable. Check server logs and database connectivity.' }, { status: 503 });
   }
 }
