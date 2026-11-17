@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryPage from './StoryPage';
 import ContactPage from '@/components/ContactPage';
 import StoreBenefits from '@/components/StoreBenefits';
+import HeroCarousel from '@/components/HeroCarousel';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
   ShieldCheck, Mail, Phone, Copy, Check, Package, AlertTriangle, MapPin,
@@ -66,7 +67,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [maxPrice, setMaxPrice] = useState('');
   const [selected, setSelected] = useState<P | null>(null);
   const [gallery, setGallery] = useState(0);
-const [heroIndex, setHeroIndex] = useState(0);
   const [policy, setPolicy] = useState(initialPolicy || 'shipping');
   const [cart, setCart] = useState<Cart[]>([]);
   const [coupon, setCoupon] = useState('');
@@ -167,13 +167,6 @@ const [heroIndex, setHeroIndex] = useState(0);
   }, []);
 
   useEffect(() => { localStorage.setItem('cruvita-cart', JSON.stringify(cart)); }, [cart]);
-useEffect(() => {
-  const slides = [homepage.image, ...banners.filter((b: any) => b?.enabled !== false).map((b: any) => b?.image)].filter(Boolean);
-  const count = slides.length > 1 ? slides.length : 1;
-  if (count <= 1) return;
-  const t = setInterval(() => setHeroIndex((i) => (i + 1) % count), 4000);
-  return () => clearInterval(t);
-}, [banners, homepage.image]);
 
   useEffect(() => {
     const titles: Partial<Record<PageKey, string>> = {
@@ -200,6 +193,14 @@ useEffect(() => {
     setSelected(p);
     setGallery(0);
     navigate('product', { slug: p.slug });
+  }
+
+  function shopCategory(nextCategory: string) {
+    setSearch('');
+    setMinPrice('');
+    setMaxPrice('');
+    setCategory(nextCategory);
+    navigate('shop');
   }
 
   function add(id: string, qty = 1) {
@@ -229,7 +230,7 @@ useEffect(() => {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = products.filter((p) =>
-      (category === 'All' || p.category === category ||
+      (category === 'All' || p.category.toLowerCase().trim() === category.toLowerCase().trim() ||
         (category === 'Bestsellers' && (p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))))) &&
       (!q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)) &&
       (!minPrice || p.price >= Number(minPrice)) &&
@@ -260,8 +261,10 @@ useEffect(() => {
     '/Cookies_Brownies_Banner.png': '/Cookies_Brownies_Banner.webp',
     '/Gift_Boxes_Banner.png': '/Gift_Boxes_Banner.webp',
   } as Record<string, string>)[url] || url;
-  const heroSlides = [homepage.image, ...sortedBanners.map((b) => b?.image)].filter(Boolean).map(optimizedBanner);
-  const heroSlidesFinal = heroSlides.length ? heroSlides : ['/Hero_Banner.webp'];
+  const heroSlides = [
+    { type: 'image' as const, image: optimizedBanner(homepage.image || '/Hero_Banner.webp'), title: homepage.title, subtitle: homepage.subtitle },
+    ...sortedBanners.filter((b) => b?.type === 'video' ? b?.video : b?.image).map((b) => ({ ...b, image: optimizedBanner(b.image || '') })),
+  ];
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
@@ -373,6 +376,7 @@ useEffect(() => {
           <div className="muted tiny">{p.category}</div>
           <button className="product-title" onClick={() => openProduct(p)}>{p.name}</button>
           <div className="price">₹{p.price} {p.compareAt && <del>₹{p.compareAt}</del>}</div>
+          {!!p.variants?.length && <div className="muted tiny">Options: {p.variants.map((variant: any) => variant.name).filter(Boolean).join(', ')}</div>}
           <button className="outline-button" onClick={() => add(p._id)}>
             Add to Bag +
           </button>
@@ -388,12 +392,15 @@ useEffect(() => {
       <div className="navwrap">
         <button className="mobile-only iconbtn" onClick={() => setMenu(!menu)} aria-label={menu ? 'Close menu' : 'Open menu'} aria-expanded={menu} aria-controls="store-navigation">{menu ? <X /> : <Menu />}</button>
         <button className="brand" onClick={() => navigate('home')}>
-          <img src={settings.logo || '/cruvita-logo-transparent.png'} alt="Cruvita Cookies" className="header-logo" />
+          <picture>
+            {settings.mobileLogo && <source media="(max-width: 700px)" srcSet={settings.mobileLogo} />}
+            <img src={settings.logo || '/cruvita-logo-transparent.png'} alt="Cruvita Cookies" className="header-logo" />
+          </picture>
         </button>
         <nav id="store-navigation" className={menu ? 'nav open' : 'nav'} aria-label="Main navigation">
           <button onClick={() => navigate('home')}>Home</button>
-          <button onClick={() => { setCategory('All'); navigate('shop'); }}>Shop All</button>
-          {categoriesForNav.filter((c) => !['Cookies', 'Brownies', 'Gift Boxes', 'Bestsellers'].includes(c)).map((c) => <button key={c} onClick={() => { setCategory(c); navigate('shop'); }}>{c}</button>)}
+          <button onClick={() => shopCategory('All')}>Shop All</button>
+          {categoriesForNav.filter((c) => !['Cookies', 'Brownies', 'Gift Boxes', 'Bestsellers'].includes(c)).map((c) => <button key={c} onClick={() => shopCategory(c)}>{c}</button>)}
           <button onClick={() => navigate('about')}>Our Story</button>
           <button onClick={() => navigate('contact')}>Contact</button>
         </nav>
@@ -409,26 +416,16 @@ useEffect(() => {
     {message && <div className={'notice ' + (messageKind === 'error' ? 'notice-error' : messageKind === 'success' ? 'notice-success' : '')} role="status">{message}</div>}
 
     {page === 'home' && <>
-      <section className="hero hero-slider" style={{ backgroundImage: `url(${heroSlidesFinal[heroIndex] || '/Hero_Banner.webp'})` }}>
-        <div className="hero-overlay">
-          <div className="eyebrow">✦ {homepage.eyebrow || 'FRESHLY BAKED JOY'} ✦</div>
-          <h1>{homepage.title || 'A little bite of'} <i>{homepage.subtitle || 'happiness.'}</i></h1>
-          <p>{settings.about || 'Delightful cookies, rich brownies and beautiful gift boxes, made for life’s sweetest moments.'}</p>
-          <button className="primary-button" onClick={() => navigate('shop')}>Shop Our Treats →</button>
-        </div>
-        {heroSlidesFinal.length > 1 && <div className="hero-dots">
-          {heroSlidesFinal.map((_, i) => <button key={i} className={i === heroIndex ? 'active' : ''} onClick={() => setHeroIndex(i)} aria-label={'Slide ' + (i + 1)} />)}
-        </div>}
-      </section>
+      <HeroCarousel slides={heroSlides} eyebrow={homepage.eyebrow || 'FRESHLY BAKED JOY'} description={settings.about || 'Delightful cookies, rich brownies and beautiful gift boxes, made for life’s sweetest moments.'} onShop={() => shopCategory('All')} />
       <StoreBenefits />
       <section className="section">
         <div className="section-heading section-heading-centered"><div className="eyebrow">EXPLORE OUR COLLECTIONS</div><h2>Shop by <i>Category</i></h2></div>
         <div className="category-grid">
-          {categoriesForNav.map((c) => {
-            const cat = categories.find((x) => x.name === c);
-            return <button className="category-card" key={c} onClick={() => { setCategory(c); navigate('shop'); }}>
+          {categories.filter((c) => ['cookies', 'brownies', 'gift boxes'].includes(c.name.toLowerCase().trim())).map((cat) => {
+            const c = cat.name;
+            return <button className="category-card" key={c} onClick={() => shopCategory(c)}>
               {cat?.image ? <img src={cat.image} alt={c} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 12 }} />
-                : <span>{c === 'Brownies' ? '🍫' : c === 'Gift Boxes' ? '🎁' : c === 'Bestsellers' ? '⭐' : '🍪'}</span>}
+                : <span className="category-monogram" aria-hidden="true">{c.charAt(0)}</span>}
               <h3>{c}</h3><b>Shop Now →</b>
             </button>;
           })}
@@ -442,12 +439,13 @@ useEffect(() => {
             <div className="product-grid">
               {products.filter((p) => p.category === 'Bestsellers' || p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))).slice(0, 8).map(tile)}
             </div>
-            {!products.some((p) => p.category === 'Bestsellers' || p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))) && (
+            {catalogueError && <p className="center" role="alert">{catalogueError}</p>}
+            {!catalogueError && !products.some((p) => p.category === 'Bestsellers' || p.featured || (p.tags || []).some((t) => /bestseller/i.test(t))) && (
               <p className="center">Our bestsellers are coming soon.</p>
             )}
           </>
         )}
-        <div className="center"><button className="primary-button" onClick={() => { setCategory('Bestsellers'); navigate('shop'); }}>Shop Bestsellers →</button></div>
+        <div className="center"><button className="primary-button" onClick={() => shopCategory('Bestsellers')}>Shop Bestsellers →</button></div>
       </section>
 
       {(Array.isArray(content.find((c) => c.key === 'custom-sections')?.value) ? content.find((c) => c.key === 'custom-sections')!.value : [])
@@ -657,8 +655,8 @@ useEffect(() => {
         </div>
         <div>
           <h4>Shop</h4>
-          <button onClick={() => { setCategory('All'); navigate('shop'); }}>Shop All</button>
-          {categoriesForNav.map((c) => <button key={c} onClick={() => { setCategory(c); navigate('shop'); }}>{c}</button>)}
+          <button onClick={() => shopCategory('All')}>Shop All</button>
+          {categoriesForNav.map((c) => <button key={c} onClick={() => shopCategory(c)}>{c}</button>)}
         </div>
         <div>
           <h4>Help</h4>

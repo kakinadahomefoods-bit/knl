@@ -122,10 +122,12 @@ export default function Admin() {
       } else {
         setEdit((p: Any) => ({
           ...p,
+          ...(x.resourceType === 'video' ? { video: x.url, type: 'video', publicId: x.publicId } : {
           images: targetFolder === 'cruvita/products' ? [...(Array.isArray(p.images) ? p.images : String(p.images || '').split(',').map((s: string) => s.trim()).filter(Boolean)), x.url] : p.images,
           image: targetFolder !== 'cruvita/products' ? x.url : p.image,
           logo: targetFolder === 'cruvita/logo' ? x.url : p.logo,
           publicId: targetFolder !== 'cruvita/products' ? x.publicId : p.publicId,
+          }),
         }));
       }
       if (tab === 'Media') load('Media');
@@ -186,7 +188,7 @@ export default function Admin() {
 
   const uploader = (targetFolder = folder, target: 'edit' | 'homepage' | 'settings' = 'edit') => <>
     <label className="muted tiny">{MEDIA_FOLDERS.find(([v]) => v === targetFolder)?.[1] || 'Image'} — choose an image from your device (max 5 MB)</label>
-    <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+    <input type="file" accept={targetFolder === 'cruvita/banners' && target === 'edit' && tab === 'Banners' ? 'image/*,video/mp4,video/webm' : 'image/*'} onChange={(e) => setFile(e.target.files?.[0] || null)} />
     <button type="button" disabled={busy || !file} onClick={() => { setFolder(targetFolder); setUploadTarget(target); upload(targetFolder, target); }}>
       {busy ? 'Uploading…' : 'Upload image'}
     </button>
@@ -346,7 +348,10 @@ export default function Admin() {
         <form className="checkout-form" onSubmit={async (e) => { e.preventDefault(); try { await api('/api/admin/banners', 'POST', edit); setEdit({}); report('Banner saved', false); load('Banners'); } catch (err: any) { report(err.message, true); } }}>
           <h3>{edit.key ? 'Edit banner' : 'Add banner'}</h3>
           <label>Slug<input required disabled={!!edit.key} value={edit.slug || ''} onChange={(e) => setEdit((v) => ({ ...v, slug: e.target.value }))} /></label>
-          {['title', 'subtitle', 'image', 'link', 'sortOrder'].map((k) => field(k))}
+          <label>Slide type<select value={edit.type || 'image'} onChange={(e) => setEdit((v) => ({ ...v, type: e.target.value }))}><option value="image">Image</option><option value="video">Video</option></select></label>
+          {['title', 'subtitle', 'description', 'ctaText', 'image', 'mobileImage', 'video', 'mobileVideo', 'poster', 'link', 'duration', 'sortOrder'].map((k) => field(k))}
+          <p className="muted tiny">Use HTTPS or site-relative URLs. Video slides require a video URL and poster. Duration is in milliseconds (3,000–30,000) for image slides.</p>
+          <label><input type="checkbox" checked={!!edit.loop} onChange={(e) => setEdit((v) => ({ ...v, loop: e.target.checked }))} /> Loop video</label>
           <label><input type="checkbox" checked={edit.enabled !== false} onChange={(e) => setEdit((v) => ({ ...v, enabled: e.target.checked }))} /> Enabled</label>
           {uploader('cruvita/banners')}
           <button className="primary-button">Save Banner</button>
@@ -438,7 +443,7 @@ export default function Admin() {
         <h2>SEO & branding</h2>
         {[
           ['storeName', 'Store name'], ['seoTitle', 'Default page title'], ['seoDescription', 'Meta description'],
-          ['announcement', 'Announcement bar'], ['logo', 'Logo image URL'],
+          ['announcement', 'Announcement bar'], ['logo', 'Desktop logo image URL'], ['mobileLogo', 'Mobile logo image URL (optional)'],
         ].map(([k, l]) => <label key={k}>{l}<input value={settings[k] || ''} onChange={(e) => setSettings((v) => ({ ...v, [k]: e.target.value }))} /></label>)}
         {uploader('cruvita/logo', 'settings')}
         <button className="primary-button">Save SEO Settings</button>

@@ -22,6 +22,10 @@ export async function DELETE(req: Request) {
     return Response.json({ error: 'Only managed Cruvita assets can be removed' }, { status: 400 });
   }
   await db();
+  const asset = await Media.findOne({ publicId }).lean() as any;
+  if (asset?.resourceType === 'video') {
+    return Response.json({ error: 'Video assets must be removed through Cloudinary after checking they are unused' }, { status: 409 });
+  }
   const [products, categories, content] = await Promise.all([
     Product.find({ $or: [{ images: { $regex: publicId } }, { publicIds: publicId }] }).countDocuments(),
     Category.find({ publicId }).countDocuments(),

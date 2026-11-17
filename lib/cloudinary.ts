@@ -41,7 +41,7 @@ export function optimizedImageUrl(url: unknown, width?: number): string {
   return parts[0] + '/upload/' + transforms.join(',') + '/' + parts[1];
 }
 
-export async function uploadImage(bytes: Buffer, folder: MediaFolder, publicId?: string) {
+export async function uploadImage(bytes: Buffer, folder: MediaFolder, publicId?: string, resourceType: 'image' | 'video' = 'image') {
   const client = configureCloudinary();
   return new Promise<{
     url: string;
@@ -54,7 +54,7 @@ export async function uploadImage(bytes: Buffer, folder: MediaFolder, publicId?:
   }>((resolve, reject) => {
     const options: Record<string, unknown> = {
       folder,
-      resource_type: 'image',
+      resource_type: resourceType,
       overwrite: true,
     };
     if (publicId) options.public_id = publicId;

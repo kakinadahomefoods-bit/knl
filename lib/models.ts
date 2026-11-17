@@ -173,6 +173,7 @@ const media = new Schema(
     publicId: { type: String, unique: true, required: true },
     url: { type: String, required: true },
     folder: { type: String, required: true, index: true },
+    resourceType: { type: String, enum: ['image', 'video'], default: 'image' },
     format: String,
     bytes: Number,
     width: Number,

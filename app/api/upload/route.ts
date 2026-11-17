@@ -10,13 +10,15 @@ export async function POST(req: Request) {
   try {
     const data = await req.formData();
     const file = data.get('file');
-    if (!(file instanceof File) || !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
-      return Response.json({ error: 'Image under 5MB required' }, { status: 400 });
-    }
     const folder = resolveFolder(data.get('folder'));
+    const video = file instanceof File && ['video/mp4', 'video/webm'].includes(file.type);
+    if (!(file instanceof File) || (!file.type.startsWith('image/') && !video) ||
+        (video && folder !== 'cruvita/banners') || file.size > 4 * 1024 * 1024) {
+      return Response.json({ error: 'Image or banner MP4/WebM under 4MB required' }, { status: 400 });
+    }
     const publicId = clean(data.get('publicId'), 200) || undefined;
     const bytes = Buffer.from(await file.arrayBuffer());
-    const result = await uploadImage(bytes, folder, publicId);
+    const result = await uploadImage(bytes, folder, publicId, video ? 'video' : 'image');
     await db();
     await Media.findOneAndUpdate(
       { publicId: result.publicId },
@@ -24,6 +26,7 @@ export async function POST(req: Request) {
         $set: {
           url: result.url,
           folder: result.folder,
+          resourceType: video ? 'video' : 'image',
           format: result.format,
           bytes: result.bytes,
           width: result.width,
@@ -33,7 +36,7 @@ export async function POST(req: Request) {
       },
       { upsert: true }
     );
-    return Response.json({ ...result, url: optimizedImageUrl(result.url), optimized: true });
+    return Response.json({ ...result, url: video ? result.url : optimizedImageUrl(result.url), resourceType: video ? 'video' : 'image', optimized: !video });
   } catch (e) {
     console.error('[upload] failed:', (e as Error).message);
     return Response.json({ error: 'Upload failed; check Cloudinary credentials' }, { status: 503 });

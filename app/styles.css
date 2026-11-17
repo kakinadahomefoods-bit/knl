@@ -92,6 +92,16 @@
   align-items: center;
   text-align: center;
 }
+.multimedia-hero .hero-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.multimedia-hero picture img{display:block;width:100%;height:100%;object-fit:cover}
+.multimedia-hero::before{z-index:1}
+.multimedia-hero .hero-overlay,.multimedia-hero .hero-arrows,.multimedia-hero .hero-dots{z-index:2}
+.hero-arrows{position:absolute;right:clamp(16px,3vw,48px);bottom:24px;display:flex;gap:8px}
+.hero-arrows button{width:44px;height:44px;border:1px solid #fff9;background:#3d211999;color:#fff;border-radius:50%;font-size:28px;line-height:1}
+.hero-dots button{min-width:16px;min-height:16px}
+.hero-video-play{margin-left:12px;border:1px solid white;border-radius:8px;background:#3d2119a6;color:white;padding:12px}
+.category-monogram{display:grid!important;place-items:center;width:80px;height:80px;margin:auto;border:1px solid #d7b59b;border-radius:50%;font:40px 'Playfair Display',serif;color:#a65f48}
+.category-grid{justify-content:center}
 
 /* Responsive layout and interaction refinements */
 button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #a54c40;outline-offset:3px}

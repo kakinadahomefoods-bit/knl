@@ -26,11 +26,27 @@ export async function POST(req: Request) {
     const x = await req.json().catch(() => {});
     const slug = clean(x.slug, 80).toLowerCase().replace(/[^a-z0-9-]+/g, '-');
     if (!slug) return Response.json({ error: 'Banner slug required' }, { status: 400 });
+    const validUrl = (v: unknown) => !v || (typeof v === 'string' && /^(\/(?!\/)|https:\/\/)/i.test(v));
+    if (![x.image, x.mobileImage, x.video, x.mobileVideo, x.poster, x.link].every(validUrl)) {
+      return Response.json({ error: 'Media and links must be HTTPS or local paths' }, { status: 400 });
+    }
+    if (x.type === 'video' && (!x.video || !x.poster)) {
+      return Response.json({ error: 'Video slides require a video URL and poster image' }, { status: 400 });
+    }
     await db();
     const value = {
       title: clean(x.title, 200),
       subtitle: clean(x.subtitle, 200),
       image: typeof x.image === 'string' ? x.image : '',
+      type: x.type === 'video' ? 'video' : 'image',
+      mobileImage: clean(x.mobileImage, 2000),
+      video: clean(x.video, 2000),
+      mobileVideo: clean(x.mobileVideo, 2000),
+      poster: clean(x.poster, 2000),
+      description: clean(x.description, 500),
+      ctaText: clean(x.ctaText, 80),
+      duration: Math.max(3000, Math.min(30000, Number(x.duration) || 5000)),
+      loop: !!x.loop,
       publicId: clean(x.publicId, 200),
       link: clean(x.link, 300),
       enabled: x.enabled !== false,
