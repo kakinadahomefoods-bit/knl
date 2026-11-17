@@ -3,7 +3,7 @@
 ## Reference inspected
 - URL: https://www.crusantcookies.com/
 - Brand in reference: "crusant cookies" (replaced with Cruvita Cookies)
-- Contact: crusantcookies.in@gmail.com, +91 81256 24430, 8-3-112, Karimnagar, Telangana, India
+- Contact: crusantcookies.in@gmail.com, +91 81256 24430, 30/536d2, Gandhi Nagar, Nandyal Rural, Nandyal, Nandyal R.S., Nandyal, AP, IN, 518502
 - FSSAI Lic. 23625014000747
 - Currency: INR (₹)
 - Theme color: #3F201F, notice bar #2A0C0A, menu bar #FFC0CB
