@@ -651,7 +651,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       <div className="footer-grid">
         <div>
           <img src={settings.logo || '/cruvita-logo-transparent.png'} alt="Cruvita Cookies" className="footer-logo" />
-          <p>[Placeholder brand description. Small-batch cookies and brownies, baked to order. Made with love, baked for you.]</p>
+          <p>{settings.about || 'Small-batch cookies and brownies, baked to order. Made with love, baked for you.'}</p>
         </div>
         <div>
           <h4>Shop</h4>
@@ -667,10 +667,9 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         </div>
         <div>
           <h4>Contact</h4>
-          <p>[Placeholder Address Line 1]</p>
-          <p>[Placeholder City, State, India]</p>
+          {settings.address && <p>{settings.address}</p>}
           <p><a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a></p>
-          <a href="mailto:placeholder@example.com">[placeholder@example.com]</a>
+          <a href={'mailto:' + email}>{email}</a>
           <p>FSSAI Certified · Lic. 23625014000747</p>
         </div>
       </div>
