@@ -334,6 +334,8 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
       errorCode: 'RATE_API_NOT_CONFIGURED',
       error: 'Live carrier rate calculation is not configured for this account. Contact the store owner.',
     };
+  } else if (settings.fallbackShippingMethod === 'none') {
+    return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
   } else if (resolved.rateSource === 'rate_card' && (shippingRateFallbackEnabled() || resolved.mode === 'manual')) {
     if (!process.env.SHIPPING_RATE_CARD?.trim()) return { ok: false, status: 503, serviceable: true, error: 'Delivery rate card is not configured.' };
     const parsed = parseRateCard(process.env.SHIPPING_RATE_CARD);
