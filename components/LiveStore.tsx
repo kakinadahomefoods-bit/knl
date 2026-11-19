@@ -7,6 +7,7 @@ import StoreBenefits from '@/components/StoreBenefits';
 import { BUSINESS_DEFAULTS } from '@/lib/business';
 import HeroCarousel from '@/components/HeroCarousel';
 import CatalogueImage from '@/components/CatalogueImage';
+import { validateCustomer } from '@/lib/validation';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
   ShieldCheck, Mail, Phone, Copy, Check, Package, AlertTriangle, MapPin,
@@ -89,6 +90,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [deliveryQuote, setDeliveryQuote] = useState<any>(null);
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [quoteError, setQuoteError] = useState('');
+  const [paymentAvailable, setPaymentAvailable] = useState(false);
   const [pinCheck, setPinCheck] = useState('');
   const [pinCheckResult, setPinCheckResult] = useState<any>(null);
   const [pinCheckBusy, setPinCheckBusy] = useState(false);
@@ -97,8 +99,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const quoteSeq = useRef(0);
 
   const email = settings.email || BUSINESS_DEFAULTS.email;
-  const freeThreshold = Number(settings.freeShippingThreshold ?? 999);
-  const flatFee = Number(settings.flatShippingFee ?? 80);
   const phone = settings.phone || BUSINESS_DEFAULTS.phone;
   const address = settings.address || BUSINESS_DEFAULTS.address;
   const fssaiLicense = settings.fssaiLicense || BUSINESS_DEFAULTS.fssaiLicense;
@@ -112,6 +112,10 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   }
 
   // Initial data + URL synchronisation.
+  useEffect(() => {
+    fetch('/api/checkout/config').then((r) => r.json()).then((x) => setPaymentAvailable(x.available === true)).catch(() => setPaymentAvailable(false));
+  }, []);
+
   useEffect(() => {
     const initial = readPath(window.location.pathname);
     setPage(initial.page);
@@ -293,18 +297,15 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const checkoutEntries = checkoutItems.map((i) => ({ p: products.find((x) => x._id === i.id), qty: i.qty }))
     .filter((x): x is { p: P; qty: number } => Boolean(x.p));
   const subtotal = entries.reduce((a, x) => a + x.p.price * x.qty, 0);
-  const estimatedShipping = subtotal >= freeThreshold ? 0 : flatFee;
-  // A server quote overrides the local estimate as soon as a valid PIN is present.
-  const shipping = deliveryQuote?.quote ? Number(deliveryQuote.quote.amount) : estimatedShipping;
-  const total = deliveryQuote?.pricing ? Number(deliveryQuote.pricing.total) : subtotal + (entries.length ? shipping : 0);
-
   // Bill values prefer the authoritative server quote; tax is included in MRP.
-  const bill = deliveryQuote?.pricing;
+  const quoteKey = JSON.stringify([customer.pin, customer.city, customer.state, customer.houseNo, customer.street, customer.landmark, checkoutItems]);
+  const activeQuote = deliveryQuote?.key === quoteKey ? deliveryQuote : null;
+  const bill = activeQuote?.pricing;
   const billSubtotal = bill ? Number(bill.subtotal) : checkoutEntries.reduce((a, x) => a + x.p.price * x.qty, 0);
   const billDiscount = bill ? Number(bill.discount) : 0;
-  const billShipping = bill ? Number(bill.shipping) : shipping;
-  const billTotal = bill ? Number(bill.total) : billSubtotal + (checkoutEntries.length ? billShipping : 0);
-  const canPay = !busy && !quoteBusy && checkoutEntries.length > 0 && Boolean(deliveryQuote?.ok);
+  const billShipping = bill ? Number(bill.shipping) : null;
+  const billTotal = bill ? Number(bill.total) : billSubtotal;
+  const canPay = !busy && !quoteBusy && !couponBusy && paymentAvailable && checkoutEntries.length > 0 && Boolean(activeQuote?.ok && bill && Number.isFinite(billShipping) && Number.isFinite(billTotal)) && !validateCustomer(customer);
 
   const cartCount = cart.reduce((s, x) => s + x.qty, 0);
   const testimonials = typeof settings.testimonials === 'string'
@@ -331,7 +332,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     e.preventDefault();
     if (!checkoutEntries.length) return notice('Your bag is empty', 'error');
     // Never reach the payment gateway until shipping has been resolved server-side.
-    if (!deliveryQuote?.ok || quoteBusy || !/^[1-9]\d{5}$/.test(String(customer.pin || '').trim())) {
+    if (!canPay || !activeQuote?.ok || !/^[1-9]\d{5}$/.test(String(customer.pin || '').trim())) {
       return notice(deliveryQuote?.error || quoteError || 'Please enter a valid PIN code and wait for delivery charges to be calculated.', 'error');
     }
     if (!idem.current) idem.current = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now());
@@ -427,9 +428,11 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     couponCode = coupon
   ) {
     const seq = ++quoteSeq.current;
+    const requestKey = quoteKey;
+    setDeliveryQuote(null);
     if (!/^[1-9]\d{5}$/.test(pin) || !items.length) {
-      setDeliveryQuote(null);
-      setQuoteError('');
+      setQuoteBusy(false);
+      setQuoteError('Please enter a valid PIN code.');
       return;
     }
     setQuoteBusy(true);
@@ -444,15 +447,17 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       if (!r.ok || !x.ok) {
         if (x.errorCode === 'COUPON_INVALID') {
           // Keep delivery usable: drop the bad coupon and recalculate without it.
-          setCoupon('');
           setCouponError(x.error || 'This coupon cannot be applied to your order.');
+          if (couponCode !== coupon) return void refreshQuote(pin, items, coupon);
+          setCoupon('');
           return void refreshQuote(pin, items, '');
         }
         setCouponError('');
         setDeliveryQuote(null);
         setQuoteError(x.error || 'Delivery is unavailable for this PIN');
       } else {
-        setDeliveryQuote(x);
+        setDeliveryQuote({ ...x, key: requestKey });
+        setCoupon(couponCode);
         setQuoteError('');
       }
     } catch {
@@ -469,7 +474,11 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     if (!code) return setCouponError('Enter a coupon code first.');
     setCouponError('');
     setCouponBusy(true);
-    setCoupon(code);
+    if (!/^[1-9]\d{5}$/.test(customer.pin)) {
+      setCouponBusy(false);
+      setCouponError('Please check your PIN code first.');
+      return;
+    }
     await refreshQuote(String(customer.pin || '').trim(), checkoutItems, code);
     setCouponBusy(false);
   }
@@ -479,21 +488,19 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     setCoupon('');
     setCouponInput('');
     setCouponError('');
+    setDeliveryQuote(null);
+    setQuoteBusy(false);
   }
 
-  // Recalculate whenever the delivery PIN, checkout items or applied coupon change.
+  // Any change to the delivery destination or cart invalidates an outstanding quote.
   useEffect(() => {
-    const pin = String(customer.pin || '').trim();
-    if (!/^[1-9]\d{5}$/.test(pin) || !checkoutItems.length || page !== 'checkout') {
-      setDeliveryQuote(null);
-      setQuoteError('');
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => { if (!cancelled) void refreshQuote(pin); }, 350);
-    return () => { cancelled = true; window.clearTimeout(timer); };
+    quoteSeq.current += 1;
+    setDeliveryQuote(null);
+    setQuoteBusy(false);
+    setQuoteError('');
+    idem.current = '';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer.pin, checkoutItems, coupon, page]);
+  }, [quoteKey, page]);
 
   async function checkDeliveryPin() {
     const pin = pinCheck.trim();

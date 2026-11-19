@@ -22,11 +22,10 @@ export const delhiveryEnabled = () => process.env.DELHIVERY_ENABLED === 'true';
 
 export type FallbackShippingMethod = 'none' | 'flat_fee' | 'rate_card';
 
-/** Approved manual shipping method used when Delhivery is unavailable. The flat
- *  fee is already a configured store rule, so it is the safe default. */
+/** Manual shipping must be explicitly approved. */
 export const defaultFallbackShippingMethod = (): FallbackShippingMethod => {
   const value = process.env.SHIPPING_FALLBACK_METHOD;
-  return value === 'none' || value === 'rate_card' ? value : 'flat_fee';
+  return value === 'flat_fee' || value === 'rate_card' ? value : 'none';
 };
 
 export const shippingSimulationEnabled = () => !delhiveryConfigured() && devSimulationAllowed();
@@ -41,13 +40,13 @@ export const shippingRateFallbackEnabled = () => process.env.SHIPPING_RATE_FALLB
 export const emailConfigured = () => Boolean(process.env.EMAIL_PROVIDER_API_KEY);
 
 export const freeShippingThreshold = () => {
-  const n = Number(process.env.FREE_SHIPPING_THRESHOLD ?? 999);
-  return Number.isFinite(n) && n >= 0 ? n : 999;
+  const n = Number(process.env.FREE_SHIPPING_THRESHOLD ?? 0);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
 export const flatShippingFee = () => {
-  const n = Number(process.env.FLAT_SHIPPING_FEE ?? 80);
-  return Number.isFinite(n) && n >= 0 ? n : 80;
+  const n = Number(process.env.FLAT_SHIPPING_FEE ?? NaN);
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
 };
 
 export const contactEmail = () => process.env.CONTACT_EMAIL || 'cruvitacookies7@gmail.com';

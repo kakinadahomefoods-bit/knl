@@ -93,7 +93,7 @@ export async function getShippingSettings(): Promise<StoreSettings> {
     // Admin "Settings" values are authoritative; env vars are the fallback.
     freeShippingThreshold: settingNumber(s.freeShippingThreshold, freeShippingThreshold()),
     flatShippingFee: settingNumber(s.flatShippingFee, flatShippingFee()),
-    pickupPin: normalizePin(process.env.DELHIVERY_PICKUP_PIN || s.pickupPin || '').slice(0, 6) || '518502',
+    pickupPin: normalizePin(process.env.DELHIVERY_PICKUP_PIN || s.pickupPin || '').slice(0, 6),
     pickupName: String(process.env.DELHIVERY_PICKUP_NAME || s.pickupName || '').trim().slice(0, 120),
     delhiveryEnabled: parseBoolean(s.delhiveryEnabled, delhiveryEnabled()),
     fallbackShippingMethod: parseFallbackMethod(s.fallbackShippingMethod),
@@ -243,7 +243,7 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
 
   const items = Array.isArray(input.items) ? input.items : [];
   let pricedItems: NonNullable<QuoteResult['pricing']>['items'] = [];
-  let subtotal = 0;
+    let subtotal = 0;
   let discount = 0;
   let couponCode = '';
 
@@ -269,7 +269,7 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
       const p = byId.get(id);
       const qty = Number(items.find((i) => String(i.id) === id)?.qty);
       if (!p || !p.published) return { ok: false, status: 409, error: 'An item in your bag is no longer available', serviceable: false };
-      subtotal += Number(p.price) * qty;
+      subtotal += Math.round(Number(p.price) * 100) * qty;
       pricedItems.push({
         productId: id,
         name: String(p.name),
@@ -283,6 +283,7 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
       });
     }
 
+    subtotal /= 100;
     if (typeof input.coupon === 'string' && input.coupon.trim()) {
       couponCode = input.coupon.trim().toUpperCase().slice(0, 50);
       const coupon: any = await Coupon.findOne({ code: couponCode }).lean();
@@ -310,6 +311,12 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     };
   }
 
+  if (settings.fallbackShippingMethod === 'none' && !delhiveryRateApiEnabled()) {
+    return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
+  }
+  if (settings.fallbackShippingMethod === 'flat_fee' && !Number.isFinite(settings.flatShippingFee)) {
+    return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
+  }
   let amount = settings.flatShippingFee;
   let baseAmount = settings.flatShippingFee;
   let source: ShippingQuote['source'] = 'flat_fee';
@@ -328,7 +335,7 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     };
   } else if (resolved.rateSource === 'rate_card' && (shippingRateFallbackEnabled() || resolved.mode === 'manual')) {
     const parsed = parseRateCard(process.env.SHIPPING_RATE_CARD);
-    if (!parsed.ok) return { ok: false, status: 503, serviceable: true, error: parsed.error };
+    if (!parsed.ok || !isValidPin(settings.pickupPin)) return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
     const rate = calculateFallbackRate(parsed.card, {
       pickupPin: settings.pickupPin,
       destinationPin,

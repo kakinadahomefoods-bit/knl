@@ -69,7 +69,7 @@ export default function HeroCarousel({ slides }: {
 
   if (!active) return null;
   return (
-    <section className="hero hero-slider multimedia-hero" aria-label="Homepage videos">
+    <section className={`hero hero-slider multimedia-hero${!active.mobileVideo && /WhatsApp(?:%20| )Video(?:%20| )2026-11-19/.test(active.video || '') ? ' multimedia-hero--landscape' : ''}`} aria-label="Homepage videos">
       <video
         key={`${safeIndex}-${active.video}`}
         ref={videoRef}
