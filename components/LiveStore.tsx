@@ -76,7 +76,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [coupon, setCoupon] = useState(''); // applied coupon code (server-validated only)
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
-  const [couponBusy, setCouponBusy] = useState(false);
   const [buyNowItems, setBuyNowItems] = useState<Cart[] | null>(null);
   const [customer, setCustomer] = useState({ name: '', phone: '', email: '', houseNo: '', street: '', landmark: '', city: '', state: '', pin: '' });
   const [busy, setBusy] = useState(false);
@@ -91,9 +90,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [quoteError, setQuoteError] = useState('');
   const [paymentAvailable, setPaymentAvailable] = useState(false);
-  const [pinCheck, setPinCheck] = useState('');
-  const [pinCheckResult, setPinCheckResult] = useState<any>(null);
-  const [pinCheckBusy, setPinCheckBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const idem = useRef('');
   const quoteSeq = useRef(0);
@@ -305,7 +301,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const billDiscount = bill ? Number(bill.discount) : 0;
   const billShipping = bill ? Number(bill.shipping) : null;
   const billTotal = bill ? Number(bill.total) : billSubtotal;
-  const canPay = !busy && !quoteBusy && !couponBusy && paymentAvailable && checkoutEntries.length > 0 && Boolean(activeQuote?.ok && bill && Number.isFinite(billShipping) && Number.isFinite(billTotal)) && !validateCustomer(customer);
+  const canPay = !busy && !quoteBusy && coupon === couponInput.trim().toUpperCase() && paymentAvailable && checkoutEntries.length > 0 && Boolean(activeQuote?.ok && bill && Number.isFinite(billShipping) && Number.isFinite(billTotal)) && !validateCustomer(customer);
 
   const cartCount = cart.reduce((s, x) => s + x.qty, 0);
   const testimonials = typeof settings.testimonials === 'string'
@@ -468,28 +464,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     }
   }
 
-  async function applyCoupon() {
-    const code = couponInput.trim().toUpperCase().slice(0, 50);
-    if (!code) return setCouponError('Enter a coupon code first.');
-    setCouponError('');
-    setCouponBusy(true);
-    if (!/^[1-9]\d{5}$/.test(customer.pin)) {
-      setCouponBusy(false);
-      setCouponError('Please check your PIN code first.');
-      return;
-    }
-    await refreshQuote(String(customer.pin || '').trim(), checkoutItems, code);
-    setCouponBusy(false);
-  }
-
-  function removeCoupon() {
-    setCoupon('');
-    setCouponInput('');
-    setCouponError('');
-    // Immediately recalculate the final amount without the discount.
-    void refreshQuote(String(customer.pin || '').trim(), checkoutItems, '');
-  }
-
   // Any change to the delivery destination or cart invalidates an outstanding quote.
   useEffect(() => {
     quoteSeq.current += 1;
@@ -498,29 +472,12 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     setQuoteError('');
     idem.current = '';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quoteKey, page]);
-
-  async function checkDeliveryPin() {
-    const pin = pinCheck.trim();
-    if (!/^\d{6}$/.test(pin)) {
-      setPinCheckResult({ error: 'Enter a valid six-digit PIN code' });
-      return;
-    }
-    setPinCheckBusy(true);
-    try {
-      const r = await fetch('/api/shipping/quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, pinOnly: true }),
-      });
-      const x = await r.json();
-      setPinCheckResult(x.ok ? { ok: true, ...x.quote } : { error: x.error || 'Delivery unavailable at this PIN' });
-    } catch {
-      setPinCheckResult({ error: 'Unable to check delivery right now' });
-    } finally {
-      setPinCheckBusy(false);
-    }
-  }
+    if (page !== 'checkout' || !/^[1-9]\d{5}$/.test(customer.pin) || !checkoutItems.length) return;
+    const timer = window.setTimeout(() => {
+      void refreshQuote(customer.pin.trim(), checkoutItems, couponInput.trim().toUpperCase());
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [quoteKey, page, couponInput]);
 
   // Show the latest shipment status on the confirmation page.
   useEffect(() => {
@@ -766,20 +723,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
             <button className="primary-button" onClick={() => add(selected._id)}>Add to Bag →</button>
             <button className="outline-button" onClick={() => buyNow(selected._id)}>Buy Now →</button>
           </div>
-          <div className="pin-checker">
-            <label htmlFor="product-pin">Check delivery at your PIN code</label>
-            <div className="pin-check-row">
-              <input id="product-pin" inputMode="numeric" autoComplete="postal-code" maxLength={6} placeholder="e.g. 518502"
-                value={pinCheck} onChange={(e) => setPinCheck(e.target.value.replace(/\D/g, '').slice(0, 6))} />
-              <button type="button" className="outline-button" disabled={pinCheckBusy} onClick={checkDeliveryPin}>
-                {pinCheckBusy ? 'Checking…' : 'Check'}
-              </button>
-            </div>
-            {pinCheckResult?.error && <p className="muted tiny pin-error" role="alert">{pinCheckResult.error}</p>}
-            {pinCheckResult?.ok && <p className="muted tiny pin-ok" role="status">
-              ✓ Delivery available{pinCheckResult.serviceability?.city ? ` in ${pinCheckResult.serviceability.city}` : ''}. {pinCheckResult.note}
-            </p>}
-          </div>
         </div>
       </div>
       {products.some((p) => p._id !== selected._id && p.category === selected.category) && <section className="related-products">
@@ -840,7 +783,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
             <div className="pin-check-row">
               <input required inputMode="numeric" autoComplete="postal-code" maxLength={6} placeholder="e.g. 518502"
                 value={customer.pin} onChange={(e) => setCustomer((c) => ({ ...c, pin: e.target.value.replace(/\D/g, '').slice(0, 6) }))} />
-              <button type="button" className="outline-button" disabled={quoteBusy} onClick={() => void refreshQuote()}>{quoteBusy ? 'Checking…' : 'Check'}</button>
             </div>
           </label>
           {quoteBusy && <p className="muted tiny" role="status">Checking delivery and calculating charges…</p>}
@@ -864,11 +806,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
             <div className="coupon-row">
               <input id="coupon-code" value={couponInput} placeholder="Enter coupon code"
                 onChange={(e) => { setCouponInput(e.target.value.toUpperCase().slice(0, 50)); setCouponError(''); }} />
-              <button type="button" className="outline-button" disabled={couponBusy || !couponInput.trim() || quoteBusy} onClick={() => void applyCoupon()}>
-                {couponBusy ? 'Applying…' : 'Apply'}
-              </button>
             </div>
-            {coupon && <div className="coupon-applied"><span>✓ {coupon} applied</span><button type="button" onClick={removeCoupon}>Remove</button></div>}
+            {coupon && <div className="coupon-applied"><span>✓ {coupon} applied</span></div>}
             {couponError && <p className="muted tiny pin-error" role="alert">{couponError}</p>}
           </div>
           <button className="primary-button full checkout-pay" form="checkout-form" type="submit" disabled={!canPay}>
