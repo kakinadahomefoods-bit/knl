@@ -28,6 +28,12 @@ export async function GET() {
       flatFee: s.flatShippingFee,
       freeShippingThreshold: s.freeShippingThreshold,
     },
-    payments: { razorpayConfigured: razorpayConfigured() },
+    payments: {
+      razorpayConfigured: razorpayConfigured(),
+      keyIdPresent: Boolean(process.env.RAZORPAY_KEY_ID?.trim()),
+      keyIdFormatValid: /^rzp_(test|live)_[A-Za-z0-9]+$/.test(process.env.RAZORPAY_KEY_ID?.trim() || ''),
+      keySecretPresent: Boolean(process.env.RAZORPAY_KEY_SECRET?.trim()),
+      webhookSecretPresent: Boolean(process.env.RAZORPAY_WEBHOOK_SECRET?.trim()),
+    },
   });
 }

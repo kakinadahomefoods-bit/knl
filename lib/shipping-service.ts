@@ -311,18 +311,19 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     };
   }
 
-  if (settings.fallbackShippingMethod === 'none' && !delhiveryRateApiEnabled()) {
-    return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
-  }
-  if (settings.fallbackShippingMethod === 'flat_fee' && !Number.isFinite(settings.flatShippingFee)) {
-    return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
-  }
   let amount = settings.flatShippingFee;
   let baseAmount = settings.flatShippingFee;
   let source: ShippingQuote['source'] = 'flat_fee';
   let note = service.note || 'Flat delivery charge. Free above the store threshold.';
 
-  if (resolved.mode === 'delhivery' && delhiveryRateApiEnabled()) {
+  if (resolved.mode === 'simulation') {
+    // Development-only. Never invent a real delivery price: the simulated order
+    // carries zero shipping and is clearly labelled as a simulation everywhere.
+    amount = 0;
+    baseAmount = 0;
+    source = 'simulation';
+    note = 'Development simulation — no live carrier quote or charge.';
+  } else if (resolved.mode === 'delhivery' && delhiveryRateApiEnabled()) {
     // The live freight API is account-specific and documented only inside the client
     // developer portal. Never guess a URL: fail explicitly until the account details
     // (endpoint + request/response schema) are supplied and wired.
@@ -348,6 +349,15 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     note = 'Delivery charge based on packed weight and PIN. Arranged by our team, not a carrier quote.';
   } else if (resolved.rateSource === 'rate_card') {
     return { ok: false, status: 503, serviceable: true, error: 'Delivery rate card is not enabled.' };
+  } else if (!Number.isFinite(amount)) {
+    // No configured fee means no invented charge: block until the admin sets one.
+    return {
+      ok: false,
+      status: 503,
+      serviceable: true,
+      errorCode: 'SHIPPING_NOT_CONFIGURED',
+      error: 'Delivery charges have not been configured yet. Please contact the store.',
+    };
   }
 
   const shipping = applyFreeShipping(net, amount, settings.freeShippingThreshold);

@@ -50,8 +50,17 @@ export async function POST(req: Request) {
       const previousHash = user.passwordHash;
       const newHash = await bcrypt.hash(input.password, 12);
       const result = await Admin.updateOne({ _id: user._id, passwordHash: previousHash }, { $set: { passwordHash: newHash } });
-      if (!result.modifiedCount) return Response.json({ error: 'Please try signing in again.' }, { status: 401 });
-      user.passwordHash = newHash;
+      if (!result.modifiedCount) {
+        // Another concurrent login already migrated the hash. Re-read and verify
+        // against the new value instead of failing a valid credential.
+        const fresh = await Admin.findOne({ email }) as any;
+        if (!fresh || !(await verifyPassword(input.password, fresh.passwordHash))) {
+          return Response.json({ error: 'Please try signing in again.' }, { status: 401 });
+        }
+        user.passwordHash = fresh.passwordHash;
+      } else {
+        user.passwordHash = newHash;
+      }
     }
     const exp = Date.now() + 8 * 3600000;
     const sid = crypto.randomBytes(32).toString('hex');

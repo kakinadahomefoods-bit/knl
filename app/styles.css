@@ -220,8 +220,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .coupon-applied{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:9px 12px;border-radius:9px;background:#eef5ed;color:#3f6b45;font-size:13px;font-weight:700}
 .coupon-applied button{border:0;background:none;color:#a54c40;font-size:12px;font-weight:700;text-decoration:underline;padding:4px}
 @media(max-width:700px){
- .checkout-steps{gap:8px}
- .checkout-steps li{font-size:10px}
+ .checkout-steps{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;gap:12px;margin-bottom:18px;padding-bottom:12px;max-width:100%}
+ .checkout-steps li{flex:none;font-size:10px}
  .coupon-row{flex-direction:column}
  .coupon-row .outline-button{width:100%}
 }

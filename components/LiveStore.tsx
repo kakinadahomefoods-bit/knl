@@ -446,9 +446,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       if (seq !== quoteSeq.current) return;
       if (!r.ok || !x.ok) {
         if (x.errorCode === 'COUPON_INVALID') {
-          // Keep delivery usable: drop the bad coupon and recalculate without it.
+          // Keep delivery usable: drop the rejected coupon and recalculate without it.
           setCouponError(x.error || 'This coupon cannot be applied to your order.');
-          if (couponCode !== coupon) return void refreshQuote(pin, items, coupon);
           setCoupon('');
           return void refreshQuote(pin, items, '');
         }
@@ -484,12 +483,11 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   }
 
   function removeCoupon() {
-    quoteSeq.current += 1;
     setCoupon('');
     setCouponInput('');
     setCouponError('');
-    setDeliveryQuote(null);
-    setQuoteBusy(false);
+    // Immediately recalculate the final amount without the discount.
+    void refreshQuote(String(customer.pin || '').trim(), checkoutItems, '');
   }
 
   // Any change to the delivery destination or cart invalidates an outstanding quote.
@@ -858,10 +856,11 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           </label>
           {quoteBusy && <p className="muted tiny" role="status">Checking delivery and calculating charges…</p>}
           {quoteError && <p className="muted tiny pin-error" role="alert">{quoteError}</p>}
-          {deliveryQuote?.quote && !quoteError && <p className="muted tiny pin-ok" role="status">
-            ✓ Delivery available to {deliveryQuote.quote.destinationPin} — {deliveryQuote.quote.amount === 0 ? 'free delivery' : '₹' + deliveryQuote.quote.amount + ' delivery'}. {deliveryQuote.quote.note}
+          {activeQuote?.quote && !quoteError && <p className="muted tiny pin-ok" role="status">
+            ✓ Delivery available to {activeQuote.quote.destinationPin} — {activeQuote.quote.amount === 0 ? 'free delivery' : '₹' + activeQuote.quote.amount + ' delivery'}. {activeQuote.quote.note}
           </p>}
           <h3 className="payment-heading">Payment</h3>
+          {!paymentAvailable && <p className="muted tiny" role="status">Online payment is temporarily unavailable. Please try again later or contact us.</p>}
           <button className="primary-button full" type="submit" disabled={!canPay}>
             {busy ? 'Preparing payment…' : quoteBusy ? 'Checking delivery…' : 'Pay Securely →'}
           </button>

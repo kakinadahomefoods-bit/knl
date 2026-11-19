@@ -485,11 +485,11 @@ export default function Admin() {
         <label><input type="checkbox" checked={settings.delhiveryEnabled === true || settings.delhiveryEnabled === 'true'}
           onChange={(e) => setSettings((v) => ({ ...v, delhiveryEnabled: e.target.checked }))} /> Enable Delhivery courier booking</label>
         <label>Approved fallback shipping method
-          <select value={settings.fallbackShippingMethod || 'flat_fee'}
+          <select value={settings.fallbackShippingMethod || 'none'}
             onChange={(e) => setSettings((v) => ({ ...v, fallbackShippingMethod: e.target.value }))}>
+            <option value="none">None — block checkout when the carrier is unavailable</option>
             <option value="flat_fee">Flat delivery fee (configured above) — manual fulfilment</option>
             <option value="rate_card">Weight/PIN rate card (approved) — manual fulfilment</option>
-            <option value="none">None — stop checkout when the carrier is unavailable</option>
           </select>
         </label>
         {shippingStatus && <p className="muted tiny">

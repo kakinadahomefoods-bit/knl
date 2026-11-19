@@ -74,7 +74,8 @@ export async function POST(req: Request) {
 
     const simulation = paymentSimulationEnabled();
     if (!razorpayConfigured() && !simulation) {
-      return Response.json({ error: 'Payment gateway not configured' }, { status: 503 });
+      console.error('[checkout] payment unavailable: required Razorpay server credentials are missing');
+      return Response.json({ error: 'Online payment is temporarily unavailable. Please try again later or contact us.' }, { status: 503 });
     }
 
     const number = 'CC-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
