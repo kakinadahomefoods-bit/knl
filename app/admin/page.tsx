@@ -31,6 +31,7 @@ export default function Admin() {
   const [metrics, setMetrics] = useState<Any>({});
   const [edit, setEdit] = useState<Any>({});
   const [settings, setSettings] = useState<Any>({});
+  const [shippingStatus, setShippingStatus] = useState<Any | null>(null);
   const [homepage, setHomepage] = useState<Any>({});
   const [story, setStory] = useState<Any>(storyDefaults);
   const [file, setFile] = useState<File | null>(null);
@@ -83,6 +84,9 @@ export default function Admin() {
         setStory({ ...storyDefaults, ...(content.find((c: Any) => c.key === 'our-story')?.value || {}) });
       }
       if (['Policies', 'SEO', 'Settings'].includes(section)) setSettings((await api('/api/admin/settings')).settings || {});
+      if (section === 'Settings') {
+        try { setShippingStatus(await api('/api/admin/shipping-status')); } catch { /* diagnostics are optional */ }
+      }
       if (section === 'Media') setItems((await api('/api/admin/media')).media || []);
     } catch (e: any) { report(e.message, true); }
   }
@@ -295,9 +299,10 @@ export default function Admin() {
       </>}
 
       {tab === 'Orders' && <div className="admin-panel">{items.map((o) => <div className="admin-line" key={o._id}>
-        <span>{o.number} — ₹{o.total} — {o.paymentStatus} / {o.fulfillmentStatus} — {o.customer?.name} — {o.customer?.pin}{o.simulation ? ' (SIMULATED)' : ''}</span>
+        <span>{o.number} — ₹{o.total} — {o.paymentStatus} / {o.fulfillmentStatus} — {o.customer?.name} — {o.customer?.pin}
+          {o.shippingMethod ? ` — ${o.shippingMethod} shipping` : ''}{o.shipment?.status ? ` — ${o.shipment.status}` : ''}{o.simulation ? ' (SIMULATED)' : ''}</span>
         <button onClick={async () => { try { const x = await api('/api/admin/orders/' + o._id); setDetail(x.order); } catch (e: any) { report(e.message, true); } }}>View</button>
-        {o.paymentStatus === 'paid' && !o.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: o._id, retry: o.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Orders'); } catch (e: any) { report(e.message, true); load('Orders'); } }}>{o.shipment?.creationState === 'failed' ? 'Retry shipment' : 'Create shipment'}</button>}
+        {o.paymentStatus === 'paid' && o.shippingMethod !== 'manual' && !o.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: o._id, retry: o.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Orders'); } catch (e: any) { report(e.message, true); load('Orders'); } }}>{o.shipment?.creationState === 'failed' ? 'Retry shipment' : 'Create shipment'}</button>}
         {o.shipment?.awb && <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(o._id)} target="_blank" rel="noopener">Label</a>}
         {o.shipment?.error && <small className="stat-small">Shipping error: {o.shipment.error}</small>}
         <button onClick={async () => { try { await api('/api/admin/orders/' + o._id + '/reconcile', 'POST'); report('Reconciled', false); load('Orders'); } catch (e: any) { report(e.message, true); } }}>Reconcile</button>
@@ -318,12 +323,14 @@ export default function Admin() {
         <span>
           {s.number} — {s.shipment?.awb ? <>AWB {s.shipment.awb} — {s.shipment.status || 'created'}</> : <>no AWB — {s.shipment?.creationState || 'awaiting payment'}</>}
           {s.shipment?.simulated ? ' (SIMULATED)' : ''} — {s.customer?.name}
+          {s.shippingMethod ? <small className="stat-small"> · {s.shippingMethod} shipping · {s.fulfillmentStatus}</small> : null}
           {s.shippingQuote?.parcel?.billableWeightGrams ? <small className="stat-small"> · {s.shippingQuote.parcel.billableWeightGrams} g · {s.shippingQuote.source}</small> : null}
           {s.shipment?.error ? <small className="stat-small"> · {s.shipment.error}</small> : null}
         </span>
         {s.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/track?awb=' + encodeURIComponent(s.shipment.awb)); setDetail(x); } catch (e: any) { report(e.message, true); } }}>Track</button>}
         {s.shipment?.awb && <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(s._id)} target="_blank" rel="noopener">Label</a>}
-        {!s.shipment?.awb && s.paymentStatus === 'paid' && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: s._id, retry: s.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Shipments'); } catch (e: any) { report(e.message, true); load('Shipments'); } }}>{s.shipment?.creationState === 'failed' ? 'Retry' : 'Create shipment'}</button>}
+        {!s.shipment?.awb && s.paymentStatus === 'paid' && s.shippingMethod !== 'manual' && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: s._id, retry: s.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Shipments'); } catch (e: any) { report(e.message, true); load('Shipments'); } }}>{s.shipment?.creationState === 'failed' ? 'Retry' : 'Create shipment'}</button>}
+        {s.shippingMethod === 'manual' && s.paymentStatus === 'paid' && <small className="stat-small">Manual fulfilment — no carrier AWB</small>}
         {s.shipment?.awb && <button onClick={async () => { try { await api('/api/shipping/cancel', 'POST', { orderId: s._id }); report('Shipment cancelled', false); load('Shipments'); } catch (e: any) { report(e.message, true); } }}>Cancel</button>}
       </div>)}</div>}
       {tab === 'Shipments' && detail && <div className="tracking-card"><pre style={{ whiteSpace: 'pre-wrap', textAlign: 'left', maxHeight: 320, overflow: 'auto' }}>{JSON.stringify(detail, null, 2)}</pre><button onClick={() => setDetail(null)}>Close</button></div>}
@@ -467,7 +474,25 @@ export default function Admin() {
           ['email', 'Contact email'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp number'], ['address', 'Address'], ['fssaiLicense', 'FSSAI licence number'], ['about', 'About text'],
           ['freeShippingThreshold', 'Free shipping above (₹)'], ['flatShippingFee', 'Flat shipping fee (₹)'],
         ].map(([k, l]) => <label key={k}>{l}<textarea value={settings[k] ?? ''} onChange={(e) => setSettings((v) => ({ ...v, [k]: e.target.value }))} /></label>)}
-        <p className="muted tiny">These two shipping values are used by both the storefront estimate and the server-side total. Delhivery credentials, pickup PIN and the optional weight/PIN rate fallback are configured in secure server environment variables only.</p>
+        <p className="muted tiny">These two shipping values are used by both the storefront estimate and the server-side total. No shipping price is invented: the selected method below supplies the charge.</p>
+        <h3>Shipping methods</h3>
+        <label><input type="checkbox" checked={settings.delhiveryEnabled === true || settings.delhiveryEnabled === 'true'}
+          onChange={(e) => setSettings((v) => ({ ...v, delhiveryEnabled: e.target.checked }))} /> Enable Delhivery courier booking</label>
+        <label>Approved fallback shipping method
+          <select value={settings.fallbackShippingMethod || 'flat_fee'}
+            onChange={(e) => setSettings((v) => ({ ...v, fallbackShippingMethod: e.target.value }))}>
+            <option value="flat_fee">Flat delivery fee (configured above) — manual fulfilment</option>
+            <option value="rate_card">Weight/PIN rate card (approved) — manual fulfilment</option>
+            <option value="none">None — stop checkout when the carrier is unavailable</option>
+          </select>
+        </label>
+        {shippingStatus && <p className="muted tiny">
+          Server check — Delhivery credentials: {shippingStatus.delhivery?.credentialsConfiguredOnServer ? 'present' : 'missing'} ·
+          Live carrier: {shippingStatus.delhivery?.live ? 'enabled' : 'off'} ·
+          Pickup configured: {shippingStatus.delhivery?.pickupPinConfigured ? 'yes' : 'no'} ·
+          Razorpay: {shippingStatus.payments?.razorpayConfigured ? 'configured' : 'missing'}
+        </p>}
+        <p className="muted tiny">When Delhivery is off or unavailable, the approved fallback is used, the charge is shown before payment, and the order is marked for manual shipment processing. No automatic carrier shipment is attempted.</p>
         <label>Homepage testimonials (one approved review per line: Name | Review)
           <textarea value={settings.testimonials ?? ''} onChange={(e) => setSettings((v) => ({ ...v, testimonials: e.target.value }))} />
         </label>

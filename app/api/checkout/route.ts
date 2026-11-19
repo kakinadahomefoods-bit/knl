@@ -175,6 +175,7 @@ export async function POST(req: Request) {
             shippingSimulation: Boolean(existing.shipment?.simulated),
             shipping: Number(existing.shipping) || 0,
             total: Number(existing.total) || 0,
+            shippingMethod: String(existing.shippingMethod || (existing.simulation ? 'simulation' : 'delhivery')),
           } satisfies CheckoutResponse);
         }
       }

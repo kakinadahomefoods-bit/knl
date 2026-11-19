@@ -198,3 +198,30 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .stat-small{font-size:12px;color:#8b7972}
 .admin-link-button{display:inline-flex;align-items:center;justify-content:center;padding:8px 13px;border:1px solid #d8c8c1;border-radius:9px;background:#fff;color:#452a24;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer}
 .admin-link-button:hover{background:#fbf3ef}
+
+/* Checkout: Cart -> Bill Summary -> Delivery Details -> Payment -> Confirmation */
+.checkout-steps{display:flex;flex-wrap:wrap;gap:8px 14px;list-style:none;margin:0 0 26px;padding:0 0 18px;border-bottom:1px solid #eadfd9}
+.checkout-steps li{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#9a8880;white-space:nowrap}
+.checkout-steps li span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1px solid #d8c8c1;font-size:11px}
+.checkout-steps li.done{color:#3f6b45}
+.checkout-steps li.done span{border-color:#3f6b45;background:#eef5ed}
+.checkout-steps li.active{color:#a54c40}
+.checkout-steps li.active span{border-color:#a54c40;background:#a54c40;color:#fff}
+.checkout-form .payment-heading{margin:22px 0 10px;font-size:19px;color:#452a24}
+.summary .bill-items{padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid #eadfd9}
+.summary .bill-items>div{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;font-size:14px;overflow-wrap:anywhere}
+.summary .bill-discount{color:#3f6b45}
+.summary .bill-discount strong{color:#3f6b45}
+.coupon-box{margin-top:18px;padding-top:16px;border-top:1px dashed #d8c8c1}
+.coupon-box>label{display:block;font-weight:700;font-size:14px;margin-bottom:9px;color:#452a24}
+.coupon-row{display:flex;gap:8px;align-items:stretch}
+.coupon-row input{flex:1 1 auto;min-width:0;letter-spacing:.04em;text-transform:uppercase}
+.coupon-row .outline-button{white-space:nowrap;padding:10px 14px}
+.coupon-applied{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:9px 12px;border-radius:9px;background:#eef5ed;color:#3f6b45;font-size:13px;font-weight:700}
+.coupon-applied button{border:0;background:none;color:#a54c40;font-size:12px;font-weight:700;text-decoration:underline;padding:4px}
+@media(max-width:700px){
+ .checkout-steps{gap:8px}
+ .checkout-steps li{font-size:10px}
+ .coupon-row{flex-direction:column}
+ .coupon-row .outline-button{width:100%}
+}

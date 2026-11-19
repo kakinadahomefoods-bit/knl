@@ -34,8 +34,7 @@
     ".next-preview/types/**/*.ts",
     ".next-smoke/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts",
-    ".next-hero-verify/types/**/*.ts"
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules"

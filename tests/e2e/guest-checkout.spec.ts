@@ -29,14 +29,16 @@ test.describe('Guest checkout', () => {
     await page.click('button:has-text("Continue to Checkout")');
     await expect(page.getByRole('heading', { name: /Guest Checkout/i })).toBeVisible();
 
-    const inputs = page.locator('input');
+    const inputs = page.locator('.checkout-form input');
     await inputs.nth(0).fill('Test Guest');
-    await inputs.nth(1).fill('guest@test.com');
-    await inputs.nth(2).fill('9999999999');
-    await inputs.nth(3).fill('123 Test Street');
-    await inputs.nth(4).fill('TestCity');
-    await inputs.nth(5).fill('TestState');
-    await inputs.nth(6).fill('110001');
+    await inputs.nth(1).fill('9999999999');
+    await inputs.nth(2).fill('guest@test.com');
+    await inputs.nth(3).fill('123');
+    await inputs.nth(4).fill('Test Street');
+    await inputs.nth(5).fill('Near the park');
+    await inputs.nth(6).fill('TestCity');
+    await inputs.nth(7).fill('TestState');
+    await inputs.nth(8).fill('110001');
 
     await page.click('button:has-text("Pay Securely")');
     await expect(page.locator('body')).toBeVisible();

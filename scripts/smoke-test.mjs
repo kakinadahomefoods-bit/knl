@@ -199,7 +199,7 @@ async function main() {
   }
 
   console.log('\nGuest checkout, payment and shipping simulation');
-  const customer = { name: 'Smoke Customer', email: 'smoke@example.test', phone: '9876543210', address: '1 Test Lane', city: 'Kurnool', state: 'Andhra Pradesh', pin: '518001' };
+  const customer = { name: 'Smoke Customer', phone: '9876543210', email: 'smoke@example.test', houseNo: '1', street: 'Test Lane', landmark: '', city: 'Kurnool', state: 'Andhra Pradesh', pin: '518001' };
   await check('Checkout rejects invalid customer data', async () => {
     const r = await api('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer: { ...customer, phone: '123' }, items: [{ id: productId, qty: 1 }] }) });
     expect(r.status === 400, 'expected 400, got ' + r.status);

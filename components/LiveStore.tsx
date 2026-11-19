@@ -152,7 +152,15 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         const configuredSlides = Array.isArray(homepageValue.slides) && homepageValue.slides.length
           ? homepageValue.slides
           : bannerSlides.filter((b) => b?.enabled !== false).sort((a, b) => (Number(a?.sortOrder) || 0) - (Number(b?.sortOrder) || 0));
-        if (configuredSlides.length) setHeroSlidesState(configuredSlides);
+        if (configuredSlides.length) {
+          const hasExplicitSlides = Array.isArray(homepageValue.slides) && homepageValue.slides.length > 0;
+          const defaultVideos = [
+            { type: 'video', video: '/WhatsApp Video 2026-11-19 at 12.45.23 AM.mp4', poster: '/Hero_Banner.webp' },
+            { type: 'video', video: '/WhatsApp Video 2026-11-19 at 12.45.26 AM.mp4', poster: '/Hero_Banner.webp' },
+          ];
+          setHeroSlidesState(!hasExplicitSlides && !configuredSlides.some((slide: any) => slide.type === 'video')
+            ? [...defaultVideos, ...configuredSlides] : configuredSlides);
+        }
       })
       .catch(() => { /* content is optional */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -308,8 +316,9 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     '/Gift_Boxes_Banner.png': '/Gift_Boxes_Banner.webp',
   } as Record<string, string>)[url] || url;
   const sortedBanners = [...banners].filter((b) => b?.enabled !== false && b?.type === 'video').sort((a, b) => (Number(a?.sortOrder) || 0) - (Number(b?.sortOrder) || 0));
-  const heroSlides = heroSlidesState.length
-    ? heroSlidesState.map((slide) => ({ ...slide, image: slide.image ? optimizedBanner(slide.image) : slide.image, poster: slide.poster ? optimizedBanner(slide.poster) : slide.poster }))
+  const videoSlides = heroSlidesState.filter((slide) => slide.type === 'video' && slide.video);
+  const heroSlides = videoSlides.length
+    ? videoSlides
     : [
         { type: 'video', video: '/WhatsApp Video 2026-11-19 at 12.45.23 AM.mp4', poster: '/Hero_Banner.webp', title: homepage.title || 'A little bite of', subtitle: homepage.subtitle || 'happiness.' },
         { type: 'video', video: '/WhatsApp Video 2026-11-19 at 12.45.26 AM.mp4', poster: '/Hero_Banner.webp', title: homepage.title || 'A little bite of', subtitle: homepage.subtitle || 'happiness.' },
@@ -815,7 +824,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
             ['landmark', 'Landmark (optional)', 'text'], ['city', 'City', 'text'], ['state', 'State', 'text'],
           ] as const).map(([k, label, type]) => (
             <label key={k}>{label}
-              <input required={k !== 'landmark'} type={type} autoComplete={{ name: 'name', phone: 'tel', email: 'email', city: 'address-level2', state: 'address-level1', houseNo: 'address-line1', street: 'address-line2' }[k]}
+              <input required={k !== 'landmark'} type={type} autoComplete={{ name: 'name', phone: 'tel', email: 'email', city: 'address-level2', state: 'address-level1', houseNo: 'address-line1', street: 'address-line2', landmark: 'off' }[k]}
                 value={customer[k]} onChange={(e) => setCustomer((c) => ({ ...c, [k]: e.target.value }))} />
             </label>
           ))}
