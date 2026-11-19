@@ -8,11 +8,14 @@ export default function ContactPage({ email, phone, address, whatsapp, fssaiLice
 }) {
   const [form, setForm] = useState({ name: '', email: '', topic: 'General enquiry', message: '' });
 
-  function composeEmail(event: React.FormEvent<HTMLFormElement>) {
+  const whatsappNumber = (whatsapp || '').replace(/\D/g, '');
+  const whatsappAvailable = /^[1-9]\d{7,14}$/.test(whatsappNumber);
+
+  function composeWhatsApp(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const subject = `Cruvita Cookies: ${form.topic}`;
-    const body = `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`;
-    window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    if (!whatsappAvailable) return;
+    const body = `Cruvita Cookies: ${form.topic}\nName: ${form.name}\nEmail: ${form.email}\n\n${form.message}`;
+    window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(body)}`);
   }
 
   return <main className="contact-page">
@@ -39,7 +42,7 @@ export default function ContactPage({ email, phone, address, whatsapp, fssaiLice
             <span className="contact-method-icon"><Phone size={20} /></span>
             <span><strong>Call us</strong><small>Speak with our team</small><b>{phone}</b></span>
           </a>}
-          {whatsapp && <a className="contact-method" href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer">
+          {whatsappAvailable && <a className="contact-method" href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer">
             <span className="contact-method-icon"><MessageCircle size={20} /></span>
             <span><strong>WhatsApp</strong><small>Send us a message</small><b>Start a chat ↗</b></span>
           </a>}
@@ -55,7 +58,7 @@ export default function ContactPage({ email, phone, address, whatsapp, fssaiLice
         <div className="eyebrow">DROP US A LINE</div>
         <h2>Send a little <i>hello.</i></h2>
         <p>Tell us what’s on your mind and we’ll help however we can.</p>
-        <form onSubmit={composeEmail}>
+        <form onSubmit={composeWhatsApp}>
           <div className="contact-form-row">
             <label>Your name<input required maxLength={120} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your name" /></label>
             <label>Email address<input required type="email" maxLength={200} autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" /></label>
@@ -64,8 +67,8 @@ export default function ContactPage({ email, phone, address, whatsapp, fssaiLice
             <option>General enquiry</option><option>My order</option><option>Products and gifting</option><option>Feedback</option>
           </select></label>
           <label>Your message<textarea required maxLength={2000} rows={6} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Tell us a little more..." /></label>
-          <button className="primary-button" type="submit">Open email to send <ArrowRight size={17} /></button>
-          <p className="contact-form-note">This opens your email app with your message ready to send. Please don’t include payment details.</p>
+          <button className="primary-button" type="submit" disabled={!whatsappAvailable}>Open WhatsApp to send <ArrowRight size={17} /></button>
+          <p className="contact-form-note">{whatsappAvailable ? 'This opens WhatsApp with your message ready to send. Please don’t include payment details.' : 'WhatsApp is unavailable. Please contact us by email or phone.'}</p>
         </form>
       </div>
     </section>
