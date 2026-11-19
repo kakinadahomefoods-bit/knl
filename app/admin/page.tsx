@@ -62,9 +62,15 @@ export default function Admin() {
   async function load(section = tab) {
     try {
       if (section === 'Dashboard') setMetrics(await api('/api/admin/metrics'));
-      if (section === 'Products') setItems((await api('/api/products?admin=1')).products || []);
+      if (section === 'Products' || section === 'Inventory') {
+        const first = await api('/api/products?admin=1&limit=100&page=1');
+        const remaining = await Promise.all(
+          Array.from({ length: Math.max(0, (first.pages || 1) - 1) }, (_, index) =>
+            api(`/api/products?admin=1&limit=100&page=${index + 2}`))
+        );
+        setItems([...(first.products || []), ...remaining.flatMap((page: Any) => page.products || [])]);
+      }
       if (section === 'Categories') setItems((await api('/api/admin/categories')).categories || []);
-      if (section === 'Inventory') setItems((await api('/api/products?admin=1')).products || []);
       if (section === 'Orders') setItems((await api('/api/admin/orders')).orders || []);
       if (section === 'Payments') setItems((await api('/api/admin/payments')).payments || []);
       if (section === 'Shipments') setItems((await api('/api/admin/shipments')).shipments || []);

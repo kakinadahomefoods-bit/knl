@@ -88,6 +88,11 @@ async function main() {
     ...process.env, ...env,
     MONGODB_URI: testUri,
     ALLOW_DEV_SIMULATION: 'true',
+    // Tests must never collect money or book a real courier shipment.
+    RAZORPAY_KEY_ID: '',
+    RAZORPAY_KEY_SECRET: '',
+    RAZORPAY_WEBHOOK_SECRET: '',
+    DELHIVERY_API_TOKEN: '',
     NEXT_DIST_DIR: '.next-smoke',
     PORT: String(PORT),
   };

@@ -40,6 +40,7 @@ const product = new Schema(
 );
 product.index({ published: 1, category: 1, createdAt: -1 });
 product.index({ published: 1, featured: 1 });
+product.index({ published: 1, createdAt: -1 });
 
 const category = new Schema(
   {

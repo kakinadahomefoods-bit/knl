@@ -6,4 +6,10 @@ module.exports = {
   // Integration tests use an isolated build directory so they never clash with
   // a production build in .next.
   distDir: process.env.NEXT_DIST_DIR || '.next',
+  async headers() {
+    return [{
+      source: '/thumbnails/:path*',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+    }];
+  },
 };

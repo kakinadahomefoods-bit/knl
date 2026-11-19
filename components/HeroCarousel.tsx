@@ -6,6 +6,7 @@ type Slide = {
   type?: 'image' | 'video';
   video?: string;
   mobileVideo?: string;
+  poster?: string;
   duration?: number;
   loop?: boolean;
 };
@@ -76,7 +77,8 @@ export default function HeroCarousel({ slides }: {
         muted
         playsInline
         loop={videos.length === 1 || !!active.loop}
-        preload="metadata"
+        poster={active.poster || '/Hero_Banner.webp'}
+        preload={motionRestricted ? 'none' : 'metadata'}
         onError={() => setPlayBlocked(true)}
         onEnded={() => {
           if (videos.length > 1 && !motionRestricted && !tabHidden) {

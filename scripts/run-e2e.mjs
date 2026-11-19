@@ -26,7 +26,18 @@ await mongoose.connection.collection('admins').updateOne({ email }, { $set: { em
 await mongoose.disconnect();
 
 // spawn next dev
-const env = { ...process.env, MONGODB_URI: uri, ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET || 'test-secret-at-least-32-chars-long!!', NEXT_PUBLIC_SITE_URL: baseUrl, NODE_ENV: 'development' };
+// Never let an end-to-end run reach live payment or courier APIs.
+const env = {
+  ...process.env,
+  MONGODB_URI: uri,
+  ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET || 'test-secret-at-least-32-chars-long!!',
+  NEXT_PUBLIC_SITE_URL: baseUrl,
+  NODE_ENV: 'development',
+  RAZORPAY_KEY_ID: '',
+  RAZORPAY_KEY_SECRET: '',
+  RAZORPAY_WEBHOOK_SECRET: '',
+  DELHIVERY_API_TOKEN: '',
+};
 const server = spawn('npx', ['next', 'dev', '-p', String(port)], { cwd: root, env, stdio: 'inherit', shell: true });
 
 // wait for server

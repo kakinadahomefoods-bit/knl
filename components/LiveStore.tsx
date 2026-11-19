@@ -6,6 +6,7 @@ import ContactPage from '@/components/ContactPage';
 import StoreBenefits from '@/components/StoreBenefits';
 import { BUSINESS_DEFAULTS } from '@/lib/business';
 import HeroCarousel from '@/components/HeroCarousel';
+import CatalogueImage from '@/components/CatalogueImage';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
   ShieldCheck, Mail, Phone, Copy, Check, Package, AlertTriangle, MapPin,
@@ -128,11 +129,13 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         return response.json();
       };
       const first = await getPage(1);
+      setProducts(first.products || []);
+      setCategories(first.categories || []);
+      setLoading(false);
       const remaining = await Promise.all(
         Array.from({ length: Math.max(0, (first.pages || 1) - 1) }, (_, index) => getPage(index + 2))
       );
       setProducts([...(first.products || []), ...remaining.flatMap((result) => result.products || [])]);
-      setCategories(first.categories || []);
     }
     loadProducts()
       .catch(() => setCatalogueError('Products are temporarily unavailable. Please refresh the page to try again.'))
@@ -547,7 +550,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     </div>;
   }
 
-  function tile(p: P) {
+  function tile(p: P, index = 0) {
     return (
       <article className="product-card" key={p._id}
         onMouseMove={(e) => {
@@ -566,7 +569,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           el.style.setProperty('--ry', '0deg');
         }}>
         <button className="product-photo" onClick={() => openProduct(p)}>
-          {p.images?.[0] ? <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          {p.images?.[0] ? <CatalogueImage key={p.images[0]} src={p.images[0]} alt={p.name} eager={page === 'shop' && index < 4} />
             : <span>{p.category === 'Brownies' ? '🍫' : p.category === 'Gift Boxes' ? '🎁' : '🍪'}</span>}
           {p.tags?.[0] && <small>{p.tags[0]}</small>}
         </button>
@@ -631,7 +634,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
             const c = cat.name;
             return <button className="category-card" key={c} onClick={() => shopCategory(c)}>
               <div className="category-card-media">
-                {cat.image ? <img src={cat.image} alt="" loading="lazy" decoding="async" />
+                {cat.image ? <CatalogueImage key={cat.image} src={cat.image} alt="" category />
                   : <span className="category-monogram" aria-hidden="true">{c.charAt(0)}</span>}
               </div>
               <div className="category-card-copy"><h3>{c}</h3><b>Shop Now →</b></div>

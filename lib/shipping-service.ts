@@ -19,6 +19,14 @@ import {
 import { computeDiscount, couponError } from './pricing';
 import { notifyOrder, shipmentEmail } from './email';
 import {
+  resolveShippingMode as resolveMode,
+  type CheckoutErrorCode,
+  type ResolvedShipping,
+  type ShippingMode,
+} from './shipping-mode';
+
+export type { ShippingMode, ResolvedShipping, CheckoutErrorCode } from './shipping-mode';
+import {
   applyFreeShipping,
   calculateFallbackRate,
   computeParcel,
@@ -45,25 +53,6 @@ type StoreSettings = {
   packageDefaults: typeof DEFAULT_PACKAGE_DEFAULTS;
 };
 
-/** How a checkout is allowed to ship. Only 'delhivery' books a carrier AWB. */
-export type ShippingMode = 'delhivery' | 'manual' | 'simulation' | 'unconfigured';
-
-export type CheckoutErrorCode =
-  | 'PIN_INVALID'
-  | 'SHIPPING_NOT_CONFIGURED'
-  | 'SHIPPING_UNAVAILABLE'
-  | 'COUPON_INVALID'
-  | 'CART_INVALID'
-  | 'RATE_API_NOT_CONFIGURED';
-
-export type ResolvedShipping = {
-  mode: ShippingMode;
-  delhiveryLive: boolean;
-  rateSource: 'delhivery_rate_api' | 'rate_card' | 'flat_fee';
-  errorCode?: CheckoutErrorCode;
-  friendlyError?: string;
-};
-
 function parseBoolean(value: unknown, fallback: boolean): boolean {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') return ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
@@ -76,31 +65,15 @@ function parseFallbackMethod(value: unknown): FallbackShippingMethod {
     : defaultFallbackShippingMethod();
 }
 
-/**
- * Decide which shipping method may be used, without ever inventing a price or
- * pretending a carrier is connected. Admin Settings win over env defaults.
- */
+/** Adapt admin/environment settings to the pure shipping-mode decision. */
 export function resolveShippingMode(settings: StoreSettings): ResolvedShipping {
-  const live = Boolean(settings.delhiveryEnabled && delhiveryTokenConfigured());
-  const rateSource: ResolvedShipping['rateSource'] = delhiveryRateApiEnabled()
-    ? 'delhivery_rate_api'
-    : settings.fallbackShippingMethod === 'rate_card' ? 'rate_card' : 'flat_fee';
-
-  if (live) return { mode: 'delhivery', delhiveryLive: true, rateSource };
-
-  // Development-only simulation keeps local tests honest; never runs in production.
-  if (shippingSimulationEnabled()) return { mode: 'simulation', delhiveryLive: false, rateSource };
-
-  if (settings.fallbackShippingMethod !== 'none') {
-    return { mode: 'manual', delhiveryLive: false, rateSource };
-  }
-  return {
-    mode: 'unconfigured',
-    delhiveryLive: false,
-    rateSource,
-    errorCode: 'SHIPPING_NOT_CONFIGURED',
-    friendlyError: 'Delivery is currently unavailable for your area. Please contact the store for assistance.',
-  };
+  return resolveMode({
+    delhiveryEnabled: settings.delhiveryEnabled,
+    delhiveryTokenConfigured: delhiveryTokenConfigured(),
+    shippingSimulationAllowed: shippingSimulationEnabled(),
+    fallbackShippingMethod: settings.fallbackShippingMethod,
+    delhiveryRateApiEnabled: delhiveryRateApiEnabled(),
+  });
 }
 
 function numericEnv(name: string, fallback: number, min: number, max: number): number {
