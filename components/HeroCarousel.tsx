@@ -17,6 +17,7 @@ export default function HeroCarousel({ slides, eyebrow, description, onShop }: {
   const [playBlocked, setPlayBlocked] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const touchStart = useRef<number | null>(null);
+  const videoTimer = useRef<number | null>(null);
   const active = slides[Math.min(index, slides.length - 1)];
 
   useEffect(() => {
