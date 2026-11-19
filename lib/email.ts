@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
-import { Order } from '@/lib/models';
+import { Content, Order } from '@/lib/models';
 import { emailConfigured } from '@/lib/config';
+import { BUSINESS_DEFAULTS } from '@/lib/business';
 
 type EmailPayload = { to: string; subject: string; html: string; text?: string };
 
@@ -39,7 +40,28 @@ export async function notifyOrder(
   type: string,
   payload: EmailPayload
 ): Promise<boolean> {
-  const sent = await sendEmail(payload);
+  let contact = BUSINESS_DEFAULTS;
+  try {
+    await db();
+    const settings = await Content.findOne({ key: 'settings' }).lean() as any;
+    const value = settings?.value || {};
+    contact = {
+      ...BUSINESS_DEFAULTS,
+      email: value.email || BUSINESS_DEFAULTS.email,
+      phone: value.phone || BUSINESS_DEFAULTS.phone,
+      address: value.address || BUSINESS_DEFAULTS.address,
+      fssaiLicense: value.fssaiLicense || BUSINESS_DEFAULTS.fssaiLicense,
+    };
+  } catch {
+    console.error('[email] Could not load contact settings; using defaults');
+  }
+  const escape = (value: string) => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+  const details = `${contact.address} | ${contact.phone} | ${contact.email} | FSSAI Lic. No. ${contact.fssaiLicense}`;
+  const sent = await sendEmail({
+    ...payload,
+    html: payload.html + `<p style="color:#826c64;font-size:12px">${escape(details)}</p>`,
+    text: (payload.text || '') + `\n\n${details}`,
+  });
   try {
     await db();
     await Order.updateOne(

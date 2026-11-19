@@ -11,9 +11,10 @@ const defaults = {
   settings: {
     storeName: 'Cruvita Cookies',
     email: 'cruvitacookies7@gmail.com',
-    phone: '+919390429016',
-    whatsapp: '+919390429016',
-    address: '30/536d2, Gandhi Nagar, Nandyal Rural, Nandyal, Nandyal R.S., Nandyal, AP, IN, 518502',
+    phone: '+91 93904 29016',
+    whatsapp: '+91 93904 29016',
+    address: '30/536D2, Gandhi Nagar, Nandyal Rural, Nandyal R.S., Nandyal, Andhra Pradesh – 518502, India',
+    fssaiLicense: '23625014000747',
     about: 'Cruvita Cookies brings sweet moments to your doorstep with thoughtfully baked cookies, brownies and gift boxes.',
     announcement: 'Sweet moments, freshly baked • Cruvita Cookies',
     freeShippingThreshold: 999,

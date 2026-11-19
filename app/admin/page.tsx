@@ -452,7 +452,7 @@ export default function Admin() {
       {tab === 'Settings' && <form className="checkout-form" onSubmit={saveSettings}>
         <h2>Store settings</h2>
         {[
-          ['email', 'Contact email'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp number'], ['address', 'Address'], ['about', 'About text'],
+          ['email', 'Contact email'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp number'], ['address', 'Address'], ['fssaiLicense', 'FSSAI licence number'], ['about', 'About text'],
           ['freeShippingThreshold', 'Free shipping above (₹)'], ['flatShippingFee', 'Flat shipping fee (₹)'],
         ].map(([k, l]) => <label key={k}>{l}<textarea value={settings[k] ?? ''} onChange={(e) => setSettings((v) => ({ ...v, [k]: e.target.value }))} /></label>)}
         <label>Homepage testimonials (one approved review per line: Name | Review)

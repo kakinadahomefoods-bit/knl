@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { Order, Product } from '@/lib/models';
 import { isAdmin, adminDenied, clean } from '@/lib/security';
 import mongoose from 'mongoose';
-import { sendEmail, refundEmail } from '@/lib/email';
+import { notifyOrder, refundEmail } from '@/lib/email';
 
 export async function POST(req: Request, c: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return adminDenied();
@@ -55,7 +55,7 @@ export async function POST(req: Request, c: { params: Promise<{ id: string }> })
 
     if (order.customer?.email) {
       const { subject, html, text } = refundEmail(order, amount);
-      await sendEmail({ to: order.customer.email, subject, html, text });
+      await notifyOrder(order._id, 'refund', { to: order.customer.email, subject, html, text });
     }
     return Response.json({ ok: true, refund: data, order });
   } catch (e) {

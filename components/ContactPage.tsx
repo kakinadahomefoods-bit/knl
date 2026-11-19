@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { ArrowRight, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 
-export default function ContactPage({ email, phone, address, whatsapp }: {
-  email: string; phone?: string; address?: string; whatsapp?: string;
+export default function ContactPage({ email, phone, address, whatsapp, fssaiLicense }: {
+  email: string; phone?: string; address?: string; whatsapp?: string; fssaiLicense: string;
 }) {
   const [form, setForm] = useState({ name: '', email: '', topic: 'General enquiry', message: '' });
 
@@ -47,6 +47,7 @@ export default function ContactPage({ email, phone, address, whatsapp }: {
             <span className="contact-method-icon"><MapPin size={20} /></span>
             <span><strong>Find us</strong><small>Our address</small><b>{address}</b></span>
           </div>}
+          <p>FSSAI Lic. No. {fssaiLicense}</p>
         </div>
       </div>
 

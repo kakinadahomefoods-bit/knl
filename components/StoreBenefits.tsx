@@ -3,11 +3,11 @@ import { Cookie, Gift, Heart, Leaf, ShieldCheck, Sparkles, Truck } from 'lucide-
 const benefits = [
   { icon: Cookie, title: 'Baked to Order', detail: 'Never off a shelf', note: 'Thoughtfully Baked' },
   { icon: Leaf, title: 'Real Ingredients', detail: 'Butter, chocolate & dry fruits', note: 'Made with Care' },
-  { icon: ShieldCheck, title: 'FSSAI Certified', detail: 'Lic. 23625014000747', note: 'Perfect for Gifting' },
+  { icon: ShieldCheck, title: 'FSSAI Licence', detail: '', note: 'Perfect for Gifting' },
   { icon: Truck, title: 'Pan-India Delivery', detail: 'Shipped via Delhivery', note: 'Delivered with Love' },
 ];
 
-export default function StoreBenefits({ compact = false }: { compact?: boolean }) {
+export default function StoreBenefits({ compact = false, fssaiLicense }: { compact?: boolean; fssaiLicense: string }) {
   const noteIcons = [Sparkles, Heart, Gift, Heart];
   return <section className={`store-benefits${compact ? ' store-benefits--compact' : ''}`} aria-label="Why shop with Cruvita">
     <div className="store-benefits-grid">
@@ -19,7 +19,7 @@ export default function StoreBenefits({ compact = false }: { compact?: boolean }
           <div className="store-benefit-copy">
             <span className="store-benefit-note"><NoteIcon size={12} aria-hidden="true" /> {benefit.note}</span>
             <strong>{benefit.title}</strong>
-            <span className="store-benefit-detail">{benefit.detail}</span>
+            <span className="store-benefit-detail">{benefit.title === 'FSSAI Licence' ? `Lic. No. ${fssaiLicense}` : benefit.detail}</span>
           </div>
         </div>;
       })}

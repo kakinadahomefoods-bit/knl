@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import StoryPage from './StoryPage';
 import ContactPage from '@/components/ContactPage';
 import StoreBenefits from '@/components/StoreBenefits';
+import { BUSINESS_DEFAULTS } from '@/lib/business';
 import HeroCarousel from '@/components/HeroCarousel';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
@@ -56,6 +57,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [settings, setSettings] = useState<any>({});
   const [homepage, setHomepage] = useState<any>({});
   const [banners, setBanners] = useState<any[]>([]);
+  const [heroSlidesState, setHeroSlidesState] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalogueError, setCatalogueError] = useState('');
   const [menu, setMenu] = useState(false);
@@ -81,10 +83,12 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [copied, setCopied] = useState(false);
   const idem = useRef('');
 
-  const email = settings.email || 'cruvitacookies7@gmail.com';
+  const email = settings.email || BUSINESS_DEFAULTS.email;
   const freeThreshold = Number(settings.freeShippingThreshold ?? 999);
   const flatFee = Number(settings.flatShippingFee ?? 80);
-  const phone = settings.phone || '+919390429016';
+  const phone = settings.phone || BUSINESS_DEFAULTS.phone;
+  const address = settings.address || BUSINESS_DEFAULTS.address;
+  const fssaiLicense = settings.fssaiLicense || BUSINESS_DEFAULTS.fssaiLicense;
   const whatsappDigits = String(settings.whatsapp || phone).replace(/\D/g, '');
   const whatsappNumber = whatsappDigits.length === 10 ? '91' + whatsappDigits : whatsappDigits;
   const whatsappUrl = whatsappNumber ? 'https://wa.me/' + whatsappNumber : 'https://wa.me/';
@@ -129,8 +133,12 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         setContent(list);
         const s = list.find((c) => c.key === 'settings')?.value;
         if (s) setSettings(s);
-        setHomepage(list.find((c) => c.key === 'homepage')?.value || {});
-        setBanners(list.filter((c) => String(c.key).startsWith('banner:')).map((c) => c.value).filter(Boolean));
+        const homepageValue = list.find((c) => c.key === 'homepage')?.value || {};
+        const bannerSlides = list.filter((c) => String(c.key).startsWith('banner:')).map((c) => c.value).filter(Boolean);
+        setHomepage(homepageValue);
+        setBanners(bannerSlides);
+        const configuredSlides = Array.isArray(homepageValue.slides) ? homepageValue.slides : bannerSlides.filter((b) => b?.type === 'video');
+        if (configuredSlides.length) setHeroSlidesState(configuredSlides);
       })
       .catch(() => { /* content is optional */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -254,17 +262,18 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         return separator < 0 ? null : { name: line.slice(0, separator).trim(), text: line.slice(separator + 1).trim() };
       }).filter((review: { name: string; text: string } | null): review is { name: string; text: string } => Boolean(review?.name && review.text))
     : [];
-  const sortedBanners = [...banners].filter((b) => b?.enabled !== false).sort((a, b) => (Number(a?.sortOrder) || 0) - (Number(b?.sortOrder) || 0));
-  const heroImage = homepage.image || sortedBanners[0]?.image || '';
   const optimizedBanner = (url: string) => ({
     '/Hero_Banner.png': '/Hero_Banner.webp',
     '/Cookies_Brownies_Banner.png': '/Cookies_Brownies_Banner.webp',
     '/Gift_Boxes_Banner.png': '/Gift_Boxes_Banner.webp',
   } as Record<string, string>)[url] || url;
-  const heroSlides = [
-    { type: 'image' as const, image: optimizedBanner(homepage.image || '/Hero_Banner.webp'), title: homepage.title, subtitle: homepage.subtitle },
-    ...sortedBanners.filter((b) => b?.type === 'video' ? b?.video : b?.image).map((b) => ({ ...b, image: optimizedBanner(b.image || '') })),
-  ];
+  const sortedBanners = [...banners].filter((b) => b?.enabled !== false && b?.type === 'video').sort((a, b) => (Number(a?.sortOrder) || 0) - (Number(b?.sortOrder) || 0));
+  const heroSlides = heroSlidesState.length
+    ? heroSlidesState.map((slide) => ({ ...slide, image: slide.image ? optimizedBanner(slide.image) : slide.image, poster: slide.poster ? optimizedBanner(slide.poster) : slide.poster }))
+    : [
+        { type: 'video', video: '/WhatsApp Video 2026-11-19 at 12.45.23 AM.mp4', poster: '/Hero_Banner.webp', title: homepage.title || 'A little bite of', subtitle: homepage.subtitle || 'happiness.' },
+        { type: 'video', video: '/WhatsApp Video 2026-11-19 at 12.45.26 AM.mp4', poster: '/Hero_Banner.webp', title: homepage.title || 'A little bite of', subtitle: homepage.subtitle || 'happiness.' },
+      ];
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
@@ -387,6 +396,14 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   }
 
   return <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: settings.storeName || BUSINESS_DEFAULTS.name,
+      email,
+      telephone: phone,
+      address,
+    }).replace(/</g, '\\u003c') }} />
     <div className="announcement">{settings.announcement || 'Sweet moments, freshly baked • Cruvita Cookies'}</div>
     <header className="header">
       <div className="navwrap">
@@ -417,7 +434,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
 
     {page === 'home' && <>
       <HeroCarousel slides={heroSlides} eyebrow={homepage.eyebrow || 'FRESHLY BAKED JOY'} description={settings.about || 'Delightful cookies, rich brownies and beautiful gift boxes, made for life’s sweetest moments.'} onShop={() => shopCategory('All')} />
-      <StoreBenefits />
+      <StoreBenefits fssaiLicense={fssaiLicense} />
       <section className="section">
         <div className="section-heading section-heading-centered"><div className="eyebrow">EXPLORE OUR COLLECTIONS</div><h2>Shop by <i>Category</i></h2></div>
         <div className="category-grid">
@@ -461,7 +478,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         </section>)}
 
       <section className="section">
-        <div className="section-heading"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
+        <div className="section-heading section-heading-centered"><div className="eyebrow">WHAT OUR CUSTOMERS SAY</div><h2>Sweet <i>Testimonials</i></h2></div>
         <div className="testimonial-grid">
           {[
             { name: 'Priya S.', text: 'The chocolate chip cookies were divine — perfectly chewy and not too sweet. Will order again!', stars: 5 },
@@ -596,6 +613,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           <label>Coupon code (optional)<input value={coupon} onChange={(e) => setCoupon(e.target.value)} /></label>
           <button className="primary-button full" disabled={busy || !entries.length}>{busy ? 'Preparing payment…' : 'Pay Securely →'}</button>
           <p className="muted tiny">Final totals are calculated on the server. No account needed.</p>
+          <p className="muted tiny">Need help? <a href={'mailto:' + email}>{email}</a> · <a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a></p>
         </form>
         <aside className="summary">
           <h3>Order Summary</h3>
@@ -621,6 +639,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       <div className="success-card"><Check size={36} />
         <h1>Thank you for <i>your order!</i></h1>
         <p>Order number: <strong>{order?.number}</strong></p>
+        <p>Questions? Contact <a href={'mailto:' + email}>{email}</a> or <a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a>.</p>
         {order?.simulation && <p className="sim-label">This was a development simulation. No payment was collected.</p>}
         <p>Save your private tracking token to check your order later.</p>
         <div className="token-box"><code>{order?.token}</code><button className="iconbtn" aria-label="Copy token" onClick={() => { navigator.clipboard?.writeText(order?.token || ''); setCopied(true); }}>{copied ? <Check /> : <Copy />}</button></div>
@@ -632,7 +651,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
 
     {page === 'about' && <StoryPage content={content.find((c) => c.key === 'our-story')?.value || {}} products={products} loading={loading} tile={tile} />}
 
-    {page === 'contact' && <ContactPage email={email} phone={phone} address={settings.address} whatsapp={whatsappNumber} />}
+    {page === 'contact' && <ContactPage email={email} phone={phone} address={address} whatsapp={whatsappNumber} fssaiLicense={fssaiLicense} />}
 
     {page === 'policies' && <main className="page-shell prose">
       <h1>Store <i>Policies</i></h1>
@@ -667,10 +686,10 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         </div>
         <div>
           <h4>Contact</h4>
-          {settings.address && <p>{settings.address}</p>}
+          <p>{address}</p>
           <p><a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a></p>
           <a href={'mailto:' + email}>{email}</a>
-          <p>FSSAI Certified · Lic. 23625014000747</p>
+          <p>FSSAI Lic. No. {fssaiLicense}</p>
         </div>
       </div>
       <div className="footer-bottom">© {new Date().getFullYear()} Cruvita Cookies. All rights reserved.</div>
