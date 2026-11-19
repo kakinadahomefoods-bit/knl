@@ -225,3 +225,19 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
  .coupon-row{flex-direction:column}
  .coupon-row .outline-button{width:100%}
 }
+
+/* Checkout summary and controls */
+.checkout-layout{grid-template-columns:minmax(0, 1.6fr) minmax(320px, 1fr);gap:28px;align-items:start}
+.checkout-layout>*{min-width:0}
+.checkout-layout .summary>.coupon-box,.checkout-layout .summary>.bill-items{display:block}
+.checkout-layout .summary>div:not(.coupon-box):not(.bill-items),.checkout-layout .bill-items>div{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.checkout-layout .summary span{min-width:0;overflow-wrap:anywhere}
+.checkout-layout .summary strong{text-align:right;flex-shrink:0}
+.checkout-layout .coupon-box{width:100%}
+.checkout-layout .coupon-row{display:flex;flex-direction:row;gap:8px;align-items:center}
+.checkout-layout .coupon-row input{display:block;flex:1 1 0;width:0;min-width:0;height:46px;padding:0 12px;border:1px solid #d8c8c1;border-radius:8px;background:#fff;font:inherit}
+.checkout-layout .coupon-row button{flex:0 0 auto;width:auto;height:46px;padding:0 16px;border-radius:8px}
+.checkout-layout .checkout-pay{margin-top:20px;min-height:46px}
+.checkout-layout .pin-check-row input{min-width:0;flex:1}
+@media(max-width:850px){.checkout-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){.checkout-layout .coupon-row{flex-direction:column;align-items:stretch}.checkout-layout .coupon-row input,.checkout-layout .coupon-row button{width:100%;flex:auto}}

@@ -500,17 +500,6 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteKey, page]);
 
-  // Then recalculate automatically once the customer enters a complete address.
-  // The server quote is the only source of the shipping charge shown and charged.
-  useEffect(() => {
-    const pin = String(customer.pin || '').trim();
-    if (page !== 'checkout' || !/^[1-9]\d{5}$/.test(pin) || !checkoutItems.length) return;
-    let cancelled = false;
-    const timer = window.setTimeout(() => { if (!cancelled) void refreshQuote(pin); }, 350);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quoteKey, page]);
-
   async function checkDeliveryPin() {
     const pin = pinCheck.trim();
     if (!/^\d{6}$/.test(pin)) {
@@ -834,8 +823,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       </ol>
       {buyNowItems && <p className="muted tiny">Buying this item directly — other products in your bag are not included.</p>}
       {!checkoutEntries.length && <div className="empty"><ShoppingBag size={40} /><h2>Your bag is empty.</h2><button className="primary-button" onClick={() => navigate('shop')}>Shop Treats →</button></div>}
-      {!!checkoutEntries.length && <div className="checkout-grid">
-        <form className="checkout-form" onSubmit={checkout}>
+      {!!checkoutEntries.length && <div className="checkout-grid checkout-layout">
+        <form id="checkout-form" className="checkout-form" onSubmit={checkout}>
           <h2>Delivery Details</h2>
           {([
             ['name', 'Full name', 'text'], ['phone', 'Phone number', 'tel'], ['email', 'Email address', 'email'],
@@ -857,16 +846,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           {quoteBusy && <p className="muted tiny" role="status">Checking delivery and calculating charges…</p>}
           {quoteError && <p className="muted tiny pin-error" role="alert">{quoteError}</p>}
           {activeQuote?.quote && !quoteError && <p className="muted tiny pin-ok" role="status">
-            ✓ Delivery available to {activeQuote.quote.destinationPin} — {activeQuote.quote.amount === 0 ? 'free delivery' : '₹' + activeQuote.quote.amount + ' delivery'}. {activeQuote.quote.note}
+            ✓ Delivery available to {activeQuote.quote.destinationPin} — {activeQuote.quote.amount === 0 ? 'free delivery' : '₹' + activeQuote.quote.amount + ' delivery'}.
           </p>}
-          <h3 className="payment-heading">Payment</h3>
-          {!paymentAvailable && <p className="muted tiny" role="status">Online payment is temporarily unavailable. Please try again later or contact us.</p>}
-          <button className="primary-button full" type="submit" disabled={!canPay}>
-            {busy ? 'Preparing payment…' : quoteBusy ? 'Checking delivery…' : 'Pay Securely →'}
-          </button>
-          {!activeQuote?.ok && !quoteError && <p className="muted tiny">Enter a valid PIN code to calculate delivery and enable payment.</p>}
-          <p className="muted tiny">All amounts are recalculated on the server. Your details are kept if payment fails.</p>
-          <p className="muted tiny">Need help? <a href={'mailto:' + email}>{email}</a> · <a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a></p>
         </form>
         <aside className="summary">
           <h3>Order Summary</h3>
@@ -876,21 +857,24 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           <div><span>Product subtotal</span><strong>₹{billSubtotal}</strong></div>
           {billDiscount > 0 && <div className="bill-discount"><span>Discount{coupon ? ` (${coupon})` : ''}</span><strong>− ₹{billDiscount}</strong></div>}
           <div><span>Taxes</span><strong>Included in MRP</strong></div>
-          <div><span>Delivery charges{quoteBusy ? ' (updating…)' : ''}</span><strong>{!Number.isFinite(billShipping) ? '—' : billShipping === 0 ? 'Free' : '₹' + billShipping}</strong></div>
-          <div className="summary-total"><span>{activeQuote ? 'Final payable amount' : 'Estimated total'}</span><strong>{Number.isFinite(billTotal) ? '₹' + billTotal : '—'}</strong></div>
+          <div><span>Delivery charges</span><strong>{quoteBusy ? 'Checking…' : billShipping === null ? 'Enter PIN code' : billShipping === 0 ? 'Free' : '₹' + billShipping}</strong></div>
+          <div className="summary-total"><span>{bill ? 'Total payable' : 'Total before delivery'}</span><strong>₹{billTotal}</strong></div>
           <div className="coupon-box">
             <label htmlFor="coupon-code">Have a coupon? <span className="muted tiny">(optional)</span></label>
             <div className="coupon-row">
               <input id="coupon-code" value={couponInput} placeholder="Enter coupon code"
                 onChange={(e) => { setCouponInput(e.target.value.toUpperCase().slice(0, 50)); setCouponError(''); }} />
               <button type="button" className="outline-button" disabled={couponBusy || !couponInput.trim() || quoteBusy} onClick={() => void applyCoupon()}>
-                {couponBusy ? 'Applying…' : 'Apply Coupon'}
+                {couponBusy ? 'Applying…' : 'Apply'}
               </button>
             </div>
             {coupon && <div className="coupon-applied"><span>✓ {coupon} applied</span><button type="button" onClick={removeCoupon}>Remove</button></div>}
             {couponError && <p className="muted tiny pin-error" role="alert">{couponError}</p>}
-            <p className="muted tiny">Coupons are validated on the server. You can continue without one.</p>
           </div>
+          <button className="primary-button full checkout-pay" form="checkout-form" type="submit" disabled={!canPay}>
+            {busy ? 'Preparing payment…' : quoteBusy ? 'Checking delivery…' : 'Pay Securely →'}
+          </button>
+          {!paymentAvailable && <p className="muted tiny">Payment is currently unavailable. Please try again later.</p>}
         </aside>
       </div>}
     </main>}
