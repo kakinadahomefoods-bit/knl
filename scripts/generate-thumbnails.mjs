@@ -14,13 +14,18 @@ for (const name of await readdir(source)) {
   const bytes = await readFile(path.join(source, name));
   const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
   const variants = {};
-  for (const width of [320, 640]) {
-    const filename = `${hash}-${width}.webp`;
-    const output = await sharp(bytes).rotate().resize({ width, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
+  const metadata = await sharp(bytes).rotate().toBuffer({ resolveWithObject: true });
+  const sourceWidth = metadata.info.width;
+  for (const width of [400, 640, 960, 1280]) {
+    if (width >= sourceWidth) continue;
+    // Include encoding settings in the filename: the old URLs are immutable.
+    const filename = `${hash}-q88-${width}.webp`;
+    const output = await sharp(bytes).rotate().resize({ width, withoutEnlargement: true }).webp({ quality: 88 }).toBuffer();
     await writeFile(path.join(destination, filename), output);
     variants[width] = `/thumbnails/${filename}`;
     thumbnailBytes += output.length;
   }
+  variants[sourceWidth] = `/products/${name}`;
   originalBytes += bytes.length;
   manifest[`/products/${name}`] = variants;
 }
