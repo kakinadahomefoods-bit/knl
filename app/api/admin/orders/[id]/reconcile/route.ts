@@ -30,8 +30,10 @@ export async function POST(_: Request, c: { params: Promise<{ id: string }> }) {
         cache: 'no-store',
       });
       const pdata = await pr.json().catch(() => ({}));
-      const payment = (pdata.items || []).find((p: any) => p.status === 'captured' || p.status === 'authorized');
-      await finalizePayment(order.razorpayOrderId, payment?.id);
+      const payment = (pdata.items || []).find((p: any) => p.status === 'captured');
+      if (payment?.id) {
+        await finalizePayment(order.razorpayOrderId, { paymentId: payment.id, signatureVerified: false, method: payment.method });
+      }
     }
     const fresh = await Order.findById(id);
     return Response.json({ ok: true, order: fresh, gatewayStatus: data.status });

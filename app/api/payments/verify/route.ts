@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     if (
       payment.order_id !== order.razorpayOrderId ||
       payment.amount !== Math.round(order.total * 100) ||
+      String(payment.currency || '').toUpperCase() !== 'INR' ||
       !['captured', 'authorized'].includes(payment.status)
     ) {
       return Response.json({ error: 'Payment not confirmed' }, { status: 409 });
