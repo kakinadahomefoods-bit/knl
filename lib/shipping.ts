@@ -82,6 +82,20 @@ export function normalizePin(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/** Only accept a matching PIN explicitly enabled for prepaid deliveries. */
+export function isPrepaidServiceable(data: unknown, pin: string): boolean {
+  const codes = (data as { delivery_codes?: unknown } | null)?.delivery_codes;
+  if (!Array.isArray(codes)) return false;
+  return codes.some((entry) => {
+    const postal = entry?.postal_code;
+    if (!postal || typeof postal !== 'object') return false;
+    const remarks = String(postal.remarks ?? '').trim();
+    return String(postal.pin ?? '') === pin &&
+      String(postal.pre_paid ?? '').toUpperCase() === 'Y' &&
+      !/embargo/i.test(remarks);
+  });
+}
+
 export function roundMoney(n: number): number {
   return Math.round((Number.isFinite(n) ? n : 0) * 100) / 100;
 }

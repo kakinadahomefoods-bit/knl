@@ -502,6 +502,17 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteKey, page]);
 
+  // Then recalculate automatically once the customer enters a complete address.
+  // The server quote is the only source of the shipping charge shown and charged.
+  useEffect(() => {
+    const pin = String(customer.pin || '').trim();
+    if (page !== 'checkout' || !/^[1-9]\d{5}$/.test(pin) || !checkoutItems.length) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => { if (!cancelled) void refreshQuote(pin); }, 350);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteKey, page]);
+
   async function checkDeliveryPin() {
     const pin = pinCheck.trim();
     if (!/^\d{6}$/.test(pin)) {
@@ -810,8 +821,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         <aside className="summary">
           <h3>Order Summary</h3>
           <div><span>Subtotal</span><strong>₹{subtotal}</strong></div>
-          <div><span>Shipping</span><strong>{shipping === 0 ? 'Free' : '₹' + shipping}</strong></div>
-          <div className="summary-total"><span>Total</span><strong>₹{total}</strong></div>
+          <div><span>Delivery charges</span><strong>Enter PIN code</strong></div>
+          <div className="summary-total"><span>Subtotal</span><strong>₹{subtotal}</strong></div>
           <button className="primary-button full" onClick={continueFromCart}>Continue to Checkout →</button>
         </aside>
       </div> : <div className="empty"><ShoppingBag size={44} /><h2>Your bag is waiting for something sweet.</h2><button className="primary-button" onClick={() => navigate('shop')}>Shop Treats →</button></div>}
@@ -854,7 +865,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           <button className="primary-button full" type="submit" disabled={!canPay}>
             {busy ? 'Preparing payment…' : quoteBusy ? 'Checking delivery…' : 'Pay Securely →'}
           </button>
-          {!deliveryQuote?.ok && !quoteError && <p className="muted tiny">Enter a valid PIN code to calculate delivery and enable payment.</p>}
+          {!activeQuote?.ok && !quoteError && <p className="muted tiny">Enter a valid PIN code to calculate delivery and enable payment.</p>}
           <p className="muted tiny">All amounts are recalculated on the server. Your details are kept if payment fails.</p>
           <p className="muted tiny">Need help? <a href={'mailto:' + email}>{email}</a> · <a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a></p>
         </form>
@@ -866,8 +877,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           <div><span>Product subtotal</span><strong>₹{billSubtotal}</strong></div>
           {billDiscount > 0 && <div className="bill-discount"><span>Discount{coupon ? ` (${coupon})` : ''}</span><strong>− ₹{billDiscount}</strong></div>}
           <div><span>Taxes</span><strong>Included in MRP</strong></div>
-          <div><span>Delivery charges{quoteBusy ? ' (updating…)' : ''}</span><strong>{billShipping === 0 ? 'Free' : '₹' + billShipping}</strong></div>
-          <div className="summary-total"><span>{deliveryQuote ? 'Final payable amount' : 'Estimated total'}</span><strong>₹{billTotal}</strong></div>
+          <div><span>Delivery charges{quoteBusy ? ' (updating…)' : ''}</span><strong>{!Number.isFinite(billShipping) ? '—' : billShipping === 0 ? 'Free' : '₹' + billShipping}</strong></div>
+          <div className="summary-total"><span>{activeQuote ? 'Final payable amount' : 'Estimated total'}</span><strong>{Number.isFinite(billTotal) ? '₹' + billTotal : '—'}</strong></div>
           <div className="coupon-box">
             <label htmlFor="coupon-code">Have a coupon? <span className="muted tiny">(optional)</span></label>
             <div className="coupon-row">

@@ -1,4 +1,5 @@
 import { simulationAwb, simulationTrackingSteps } from '@/lib/simulation';
+import { isPrepaidServiceable } from '@/lib/shipping';
 
 export function delhiveryBase() {
   return (process.env.DELHIVERY_API_BASE_URL || 'https://track.delhivery.com').replace(/\/$/, '');
@@ -50,7 +51,7 @@ export async function serviceability(pin: string) {
   });
   if (!r.ok) throw new Error('Service unavailable');
   const data = await r.json();
-  return { configured: true, serviceable: Array.isArray(data.delivery_codes) && data.delivery_codes.length > 0, details: data };
+  return { configured: true, serviceable: isPrepaidServiceable(data, pin), details: data };
 }
 
 export async function trackShipment(awb: string) {

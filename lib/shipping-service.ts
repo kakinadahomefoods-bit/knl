@@ -146,7 +146,7 @@ export async function checkPinServiceability(
       const result: any = await delhiveryServiceability(code);
       if (!result.configured) throw new Error('Carrier credentials unavailable');
       const first = Array.isArray(result.details?.delivery_codes)
-        ? result.details.delivery_codes[0]?.postcode || {}
+        ? result.details.delivery_codes[0]?.postal_code || {}
         : {};
       if (!result.serviceable) {
         return {
@@ -334,6 +334,7 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
       error: 'Live carrier rate calculation is not configured for this account. Contact the store owner.',
     };
   } else if (resolved.rateSource === 'rate_card' && (shippingRateFallbackEnabled() || resolved.mode === 'manual')) {
+    if (!process.env.SHIPPING_RATE_CARD?.trim()) return { ok: false, status: 503, serviceable: true, error: 'Delivery rate card is not configured.' };
     const parsed = parseRateCard(process.env.SHIPPING_RATE_CARD);
     if (!parsed.ok || !isValidPin(settings.pickupPin)) return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
     const rate = calculateFallbackRate(parsed.card, {
@@ -345,6 +346,8 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     baseAmount = rate.amount;
     source = 'fallback_rate_card';
     note = 'Delivery charge based on packed weight and PIN. Arranged by our team, not a carrier quote.';
+  } else if (resolved.rateSource === 'rate_card') {
+    return { ok: false, status: 503, serviceable: true, error: 'Delivery rate card is not enabled.' };
   }
 
   const shipping = applyFreeShipping(net, amount, settings.freeShippingThreshold);
@@ -613,10 +616,16 @@ export async function getShipmentLabel(orderId: string): Promise<LabelResult> {
   if (target && /^https?:\/\//i.test(target)) {
     if (!delhiveryTokenConfigured()) return { ok: false, status: 503, error: 'Delhivery is not configured' };
     try {
+      const url = new URL(target);
+      const carrier = new URL(process.env.DELHIVERY_API_BASE_URL || 'https://track.delhivery.com');
+      if (url.protocol !== 'https:' || url.origin !== carrier.origin || url.username || url.password) {
+        return { ok: false, status: 400, error: 'Untrusted carrier label URL' };
+      }
       const response = await fetch(target, {
         headers: { Authorization: 'Token ' + process.env.DELHIVERY_API_TOKEN },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         cache: 'no-store',
+        redirect: 'error',
       });
       if (!response.ok) return { ok: false, status: 502, error: 'Carrier label service returned an error' };
       const bytes = Buffer.from(await response.arrayBuffer());

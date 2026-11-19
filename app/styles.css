@@ -207,6 +207,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .checkout-steps li.active{color:#a54c40}
 .checkout-steps li.active span{border-color:#a54c40;background:#a54c40;color:#fff}
 .checkout-form .payment-heading{margin:22px 0 10px;font-size:19px;color:#452a24}
+.summary>.bill-items,.summary>.coupon-box{display:block}
 .summary .bill-items{padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid #eadfd9}
 .summary .bill-items>div{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;font-size:14px;overflow-wrap:anywhere}
 .summary .bill-discount{color:#3f6b45}

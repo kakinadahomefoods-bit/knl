@@ -8,7 +8,17 @@ import {
   applyFreeShipping,
   normalizeTracking,
   DEFAULT_RATE_CARD,
+  isPrepaidServiceable,
 } from '../.test-build/shipping.js';
+
+test('Delhivery PIN requires a matching prepaid-enabled non-embargoed postcode', () => {
+  const record = (pin, pre_paid, remarks = '') => ({ delivery_codes: [{ postal_code: { pin, pre_paid, remarks } }] });
+  assert.equal(isPrepaidServiceable(record(518502, 'Y'), '518502'), true);
+  assert.equal(isPrepaidServiceable(record(518502, 'N'), '518502'), false);
+  assert.equal(isPrepaidServiceable(record(518502, 'Y', 'Embargo'), '518502'), false);
+  assert.equal(isPrepaidServiceable(record(518503, 'Y'), '518502'), false);
+  assert.equal(isPrepaidServiceable({ delivery_codes: [{}] }, '518502'), false);
+});
 
 test('PIN validation accepts only six nonzero-starting digits', () => {
   assert.equal(isValidPin('518502'), true);
