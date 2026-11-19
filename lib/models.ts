@@ -30,6 +30,9 @@ const product = new Schema(
     featured: { type: Boolean, default: false },
     published: { type: Boolean, default: false },
     weightGrams: { type: Number, default: 250, min: 0 },
+    lengthCm: { type: Number, default: 20, min: 0 },
+    breadthCm: { type: Number, default: 15, min: 0 },
+    heightCm: { type: Number, default: 10, min: 0 },
     seoTitle: { type: String, trim: true, maxlength: 200 },
     seoDescription: { type: String, trim: true, maxlength: 400 },
   },
@@ -72,6 +75,34 @@ const notification = new Schema(
   { _id: true }
 );
 
+/** Snapshot of the delivery quote shown to the customer before payment. */
+const shippingQuote = new Schema(
+  {
+    amount: Number,
+    baseAmount: Number,
+    currency: { type: String, default: 'INR' },
+    source: String,
+    simulated: { type: Boolean, default: false },
+    serviceable: { type: Boolean, default: true },
+    method: { type: String, default: 'delhivery' },
+    pickupPin: String,
+    destinationPin: String,
+    freeShippingApplied: { type: Boolean, default: false },
+    note: String,
+    parcel: {
+      items: Number,
+      weightGrams: Number,
+      lengthCm: Number,
+      breadthCm: Number,
+      heightCm: Number,
+      volumetricWeightGrams: Number,
+      billableWeightGrams: Number,
+      volumetricDivisor: Number,
+    },
+  },
+  { _id: false }
+);
+
 const order = new Schema(
   {
     number: { type: String, unique: true, required: true },
@@ -80,6 +111,9 @@ const order = new Schema(
       name: String,
       email: String,
       phone: String,
+      houseNo: String,
+      street: String,
+      landmark: String,
       address: String,
       city: String,
       state: String,
@@ -96,6 +130,9 @@ const order = new Schema(
     ],
     subtotal: Number,
     shipping: { type: Number, default: 0 },
+    /** 'delhivery' | 'manual' | 'simulation' — manual orders never get a carrier AWB. */
+    shippingMethod: { type: String, default: 'delhivery', index: true },
+    shippingQuote: { type: shippingQuote, default: undefined },
     discount: { type: Number, default: 0 },
     coupon: String,
     total: Number,
@@ -106,11 +143,15 @@ const order = new Schema(
     simulation: { type: Boolean, default: false },
     trackingToken: { type: String, unique: true, sparse: true },
     shipment: {
-      awb: String,
+      awb: { type: String, default: '' },
       status: String,
       reference: String,
       labelUrl: String,
       simulated: { type: Boolean, default: false },
+      creationState: { type: String, enum: ['creating', 'created', 'failed'], default: undefined },
+      attempts: { type: Number, default: 0 },
+      error: String,
+      lastAttemptAt: Date,
       updates: { type: [shipmentUpdate], default: [] },
       providerPayload: Schema.Types.Mixed,
     },
@@ -127,6 +168,12 @@ const order = new Schema(
   opt
 );
 order.index({ createdAt: -1 });
+// AWB uniqueness is a second line of defence behind the atomic creation claim.
+// Partial index only covers orders that actually carry an AWB (empty strings excluded).
+order.index(
+  { 'shipment.awb': 1 },
+  { unique: true, partialFilterExpression: { 'shipment.awb': { $gt: '' } } }
+);
 
 const coupon = new Schema(
   {

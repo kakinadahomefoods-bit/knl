@@ -43,9 +43,10 @@ export function simulatedTracking(awb: string, step = 2) {
 
 export async function serviceability(pin: string) {
   if (!delhiveryConfigured()) return { configured: false, serviceable: false };
-  const r = await fetch(delhiveryBase() + '/c/api/pin-codes/json/?filter_codes=' + pin, {
+  const r = await fetch(delhiveryBase() + '/c/api/pin-codes/json/?filter_codes=' + encodeURIComponent(pin), {
     headers: { Authorization: 'Token ' + process.env.DELHIVERY_API_TOKEN },
     cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
   });
   if (!r.ok) throw new Error('Service unavailable');
   const data = await r.json();
@@ -57,6 +58,7 @@ export async function trackShipment(awb: string) {
   const r = await fetch(delhiveryBase() + '/api/v1/packages/json/?waybill=' + encodeURIComponent(awb), {
     headers: { Authorization: 'Token ' + process.env.DELHIVERY_API_TOKEN },
     cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
   });
   const data = await r.json().catch(() => ({}));
   return { configured: true, ok: r.ok, data };
@@ -92,6 +94,7 @@ export async function createShipment(order: any, meta: { weight?: number; length
     headers: { Authorization: 'Token ' + token, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ format: 'json', data: JSON.stringify(payload) }),
     cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok || data.success === false) return { ok: false, error: 'Shipment rejected', details: data };

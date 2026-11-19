@@ -9,5 +9,5 @@
     "outDir": ".test-build",
     "rootDir": "lib"
   },
-  "include": ["lib/pricing.ts", "lib/validation.ts", "lib/simulation.ts"]
+  "include": ["lib/pricing.ts", "lib/validation.ts", "lib/simulation.ts", "lib/shipping.ts"]
 }

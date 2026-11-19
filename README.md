@@ -31,8 +31,13 @@ Brand email: **cruvitacookies7@gmail.com**
 | `NEXT_PUBLIC_SITE_URL` | Public site URL | Yes |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Image uploads | Yes |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Live payments | No (dev simulation used when absent) |
-| `DELHIVERY_API_TOKEN`, `DELHIVERY_API_BASE_URL`, `DELHIVERY_PICKUP_NAME` | Live shipping | No (dev simulation used when absent) |
-| `FREE_SHIPPING_THRESHOLD`, `FLAT_SHIPPING_FEE` | Shipping rules | Optional (defaults 999 / 80) |
+| `DELHIVERY_API_TOKEN`, `DELHIVERY_API_BASE_URL`, `DELHIVERY_PICKUP_NAME` | Live shipping (server-only) | No (dev simulation used when absent) |
+| `DELHIVERY_PICKUP_PIN` | Pickup PIN used by quotes/rate fallback (default `518502`) | No |
+| `DELHIVERY_LABEL_API_URL` | Exact label API URL from your Delhivery One developer portal; use `{awb}` | No |
+| `FREE_SHIPPING_THRESHOLD`, `FLAT_SHIPPING_FEE` | Default shipping rules; admin Settings values override these | Optional (defaults 999 / 80) |
+| `SHIPPING_DEFAULT_WEIGHT_GRAMS`, `SHIPPING_DEFAULT_*_CM`, `SHIPPING_VOLUMETRIC_DIVISOR` | Packed-weight/dimension defaults | No |
+| `SHIPPING_RATE_FALLBACK`, `SHIPPING_RATE_CARD` | Approved configurable weight/PIN rate fallback (OFF by default) | No |
+| `DELHIVERY_RATE_API_ENABLED` | Reserved for the account-specific live freight API; no URL is invented | No |
 | `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, `EMAIL_API_URL` | Resend-compatible email | No |
 | `CONTACT_EMAIL` | Storefront contact email fallback | Optional |
 | `ALLOW_DEV_SIMULATION` | Set `false` to disable simulations in development | Optional |
@@ -71,12 +76,30 @@ Brand email: **cruvitacookies7@gmail.com**
 - Clearly labelled development simulation that is impossible in production
 
 ### Shipping (Delhivery)
-- PIN serviceability check, shipment creation with AWB storage, shipping label URL, tracking, cancellation policy, admin shipment list
+- PIN serviceability check (official `/c/api/pin-codes/json/`), shipment creation (`/api/cmu/create.json`) with AWB storage, tracking (`/api/v1/packages/json/`), label retrieval and admin shipment list
+- Product-page and checkout PIN checker; server-side delivery quote recalculated when PIN, cart, quantities or coupon change
+- Packed weight/dimensions computed from product data (volumetric weight included); quote snapshot stored on each order
+- Shipment is created automatically once payment is verified; an atomic claim plus a partial unique AWB index prevent duplicates
+- Customer tracking on the confirmation page and at `/track`; admin create/retry, track and label actions
 - Development simulator with `SIM…` AWBs and `simulated` flags in data and UI
 
 ### Email
 - Templates for order confirmation, payment confirmation, shipping, delivery, cancellation and refund
 - Sends only when a provider key is configured; delivery status is recorded on each order as `sent`/`not sent`
+
+## 3.1 Delhivery rate calculation — important limitation
+
+Delhivery's public help centre documents **serviceability, shipment creation, tracking and labels**, and lists a **“Calculate Shipping Cost” API** in the *Client Developer Portal*. The freight/rate calculator is otherwise a Delhivery One UI tool (“Information Center → Rate Calculator”), and rates depend on your contract and shipping volume. The exact rate API endpoint, request schema and account entitlement are documented **only after logging in to Delhivery One** at `https://ucp.delhivery.com/developer-portal/documents`.
+
+**No carrier rate endpoint is hardcoded or guessed in this codebase.** The checkout therefore uses:
+
+1. **Live serviceability** from Delhivery (or a clearly labelled dev simulation).
+2. **Delivery charge** from one of these sources, in order:
+   - `DELHIVERY_RATE_API_ENABLED=true` → deliberately fails with a configuration error until your account-specific rate API details are supplied (never a guessed URL).
+   - `SHIPPING_RATE_FALLBACK=true` → the **approved, configurable store rate card** (`SHIPPING_RATE_CARD`) based on packed billable weight, pickup PIN and destination PIN. This is a business rule, **not** a Delhivery quote. It is OFF until you enable it.
+   - Default → the existing configurable flat fee / free-shipping threshold from admin Settings (env fallback 80 / 999).
+
+The same function (`quoteForCart`) powers the browser estimate, `/api/shipping/quote` and the authoritative checkout total, so the displayed charge equals the charged amount. To enable the approved fallback, set `SHIPPING_RATE_FALLBACK=true` and optionally supply a `SHIPPING_RATE_CARD` JSON object (see `.env.example`). Live carrier rates can be wired later once you provide the documented endpoint and sample request/response from your account.
 
 ## 4. Commands
 
@@ -120,21 +143,21 @@ git push -u origin main
 | Check | Result |
 |---|---|
 | `npm run lint` (TypeScript) | Pass |
-| `npm run build` (production build, 40 routes) | Pass |
-| `npm test` (12 unit tests) | Pass |
-| `npm run test:integration` | 28 / 29 checks pass |
+| `npm run build` (production build, 44 routes) | Pass |
+| `npm test` (21 unit tests, incl. packed weight/rate card/tracking) | Pass |
+| `npm run test:integration` | 32 / 33 checks pass (including auto-shipment, duplicate guard, quote and label) |
 | MongoDB Atlas connectivity | Pass (read/write in throwaway DB; live DB untouched) |
 | Cloudinary authentication (`api.ping`) | Pass |
 | Cloudinary upload | **Blocked:** supplied API key returns `403 … missing permissions (actions=["create"])`. An API key with upload/create permission is required. |
 | Razorpay live payments | Not tested — credentials not supplied |
-| Delhivery live shipments | Not tested — credentials not supplied |
+| Delhivery live shipments / rate API | Not tested — credentials and account-specific rate API details not supplied. All shipping tests use the clearly labelled simulation. |
 | Email delivery | Not tested — provider not configured |
-| Production deployment | Not performed — awaiting approval |
+| Production deployment | **Not performed — awaiting approval** |
 
 ## 8. Remaining work before production
 
 1. Replace the Cloudinary API key with one that has upload permission (or enable upload permission on the existing key), then re-run `npm run test:integration`.
-2. Supply Razorpay and Delhivery credentials, webhook secret and pickup configuration; test real payments, refunds, serviceability, AWB creation and tracking.
+2. Supply Razorpay and Delhivery credentials, webhook secret and pickup configuration; test real payments, refunds, serviceability, AWB creation, labels and tracking in a Delhivery staging/test account before enabling live shipments. If you want weight/PIN based charges, explicitly set `SHIPPING_RATE_FALLBACK=true` (approved fallback); if you want true carrier freight, provide the account-specific "Calculate Shipping Cost" API documentation so it can be wired without inventing an endpoint.
 3. Configure an email provider if transactional email is needed.
 4. Add authorized product photography, verified prices, food labels and approved policy copy via the admin panel.
 5. Run a security/accessibility audit and load test before accepting real orders.

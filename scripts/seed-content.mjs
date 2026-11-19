@@ -19,6 +19,10 @@ const defaults = {
     announcement: 'Sweet moments, freshly baked • Cruvita Cookies',
     freeShippingThreshold: 999,
     flatShippingFee: 80,
+    // Shipping method controls. Flat fee is an already-approved store rule and is
+    // used for manual fulfilment when Delhivery is disabled or unavailable.
+    delhiveryEnabled: false,
+    fallbackShippingMethod: 'flat_fee',
     logo: '',
     seoTitle: 'Cruvita Cookies | Baked with Love',
     seoDescription: 'Cookies, brownies and gift boxes from Cruvita Cookies.',
@@ -39,6 +43,19 @@ await mongoose.connect(uri);
 for (const [key, value] of Object.entries(defaults)) {
   await mongoose.connection.collection('contents').updateOne({ key }, { $setOnInsert: { key, value, createdAt: new Date(), updatedAt: new Date() } }, { upsert: true });
 }
+// Fill in any newly introduced settings keys without overwriting existing values.
+const shippingDefaults = { delhiveryEnabled: false, fallbackShippingMethod: 'flat_fee' };
+const current = await mongoose.connection.collection('contents').findOne({ key: 'settings' });
+if (current?.value && typeof current.value === 'object') {
+  const addition = {};
+  for (const [key, value] of Object.entries(shippingDefaults)) {
+    if (!(key in current.value)) addition[`value.${key}`] = value;
+  }
+  if (Object.keys(addition).length) {
+    await mongoose.connection.collection('contents').updateOne({ key: 'settings' }, { $set: addition });
+  }
+}
+
 for (const [index, name] of ['Cookies'].entries()) {
   const slug = name.toLowerCase().replace(/\s+/g, '-');
   await mongoose.connection.collection('categories').updateOne(

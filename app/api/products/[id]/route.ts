@@ -10,7 +10,7 @@ type C = { params: Promise<{ id: string }> };
 const allowed = [
   'name', 'slug', 'sku', 'category', 'description', 'price', 'compareAt', 'stock',
   'lowStockAt', 'images', 'publicIds', 'variants', 'tags', 'featured', 'published',
-  'weightGrams', 'seoTitle', 'seoDescription',
+  'weightGrams', 'lengthCm', 'breadthCm', 'heightCm', 'seoTitle', 'seoDescription',
 ];
 
 const present = (doc: any) => ({
@@ -44,6 +44,12 @@ export async function PATCH(req: Request, c: C) {
       Object.entries(data).filter(([k]) => allowed.includes(k))
     );
     if ('price' in changes) changes.price = Number(changes.price);
+    for (const key of ['weightGrams', 'lengthCm', 'breadthCm', 'heightCm']) {
+      if (key in changes) {
+        const n = Number(changes[key]);
+        changes[key] = Number.isFinite(n) && n >= 0 ? n : 0;
+      }
+    }
     if ('stock' in changes) {
       const n = Number(changes.stock);
       changes.stock = Number.isFinite(n) && n >= 0 ? n : 0;

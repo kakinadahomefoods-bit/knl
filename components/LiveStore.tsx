@@ -34,7 +34,7 @@ function readPath(pathname: string): { page: PageKey; slug?: string; policy?: st
   if (p.startsWith('/policies/')) return { page: 'policies', policy: decodeURIComponent(p.slice(10)) };
   const byPath: Record<string, PageKey> = {
     '/': 'home', '/shop': 'shop', '/cart': 'cart', '/wishlist': 'wishlist',
-    '/checkout': 'checkout', '/order/success': 'success',
+    '/checkout': 'checkout', '/order/success': 'success', '/track': 'track',
     '/about': 'about', '/contact': 'contact', '/policies': 'policies',
   };
   return { page: byPath[p] || 'home' };
@@ -71,8 +71,12 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [gallery, setGallery] = useState(0);
   const [policy, setPolicy] = useState(initialPolicy || 'shipping');
   const [cart, setCart] = useState<Cart[]>([]);
-  const [coupon, setCoupon] = useState('');
-  const [customer, setCustomer] = useState({ name: '', email: '', phone: '', address: '', city: '', state: '', pin: '' });
+  const [coupon, setCoupon] = useState(''); // applied coupon code (server-validated only)
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [buyNowItems, setBuyNowItems] = useState<Cart[] | null>(null);
+  const [customer, setCustomer] = useState({ name: '', phone: '', email: '', houseNo: '', street: '', landmark: '', city: '', state: '', pin: '' });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [messageKind, setMessageKind] = useState<'info' | 'error' | 'success'>('info');
@@ -80,8 +84,16 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [sim, setSim] = useState<{ orderId: string; razorpayOrderId: string; amount: number } | null>(null);
   const [track, setTrack] = useState({ number: '', token: '' });
   const [tracking, setTracking] = useState<any>(null);
+  const [orderTracking, setOrderTracking] = useState<any>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<any>(null);
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteError, setQuoteError] = useState('');
+  const [pinCheck, setPinCheck] = useState('');
+  const [pinCheckResult, setPinCheckResult] = useState<any>(null);
+  const [pinCheckBusy, setPinCheckBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const idem = useRef('');
+  const quoteSeq = useRef(0);
 
   const email = settings.email || BUSINESS_DEFAULTS.email;
   const freeThreshold = Number(settings.freeShippingThreshold ?? 999);
@@ -137,7 +149,9 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         const bannerSlides = list.filter((c) => String(c.key).startsWith('banner:')).map((c) => c.value).filter(Boolean);
         setHomepage(homepageValue);
         setBanners(bannerSlides);
-        const configuredSlides = Array.isArray(homepageValue.slides) ? homepageValue.slides : bannerSlides.filter((b) => b?.type === 'video');
+        const configuredSlides = Array.isArray(homepageValue.slides) && homepageValue.slides.length
+          ? homepageValue.slides
+          : bannerSlides.filter((b) => b?.enabled !== false).sort((a, b) => (Number(a?.sortOrder) || 0) - (Number(b?.sortOrder) || 0));
         if (configuredSlides.length) setHeroSlidesState(configuredSlides);
       })
       .catch(() => { /* content is optional */ });
@@ -225,8 +239,19 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     setCart((c) => c.map((i) => (i.id === id ? { ...i, qty: i.qty + delta } : i)).filter((i) => i.qty > 0));
   }
 
-  function buyNow(id: string) {
-    setCart((current) => current.some((item) => item.id === id) ? current : [...current, { id, qty: 1 }]);
+  /** Buy Now checks out only the selected product — unrelated cart items are untouched
+   *  and are never included in this order. */
+  function buyNow(id: string, qty = 1) {
+    setBuyNowItems([{ id, qty }]);
+    setCoupon('');
+    setCouponInput('');
+    setCouponError('');
+    idem.current = '';
+    navigate('checkout');
+  }
+
+  function continueFromCart() {
+    setBuyNowItems(null);
     navigate('checkout');
   }
 
@@ -252,9 +277,24 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
 
   const entries = cart.map((i) => ({ p: products.find((x) => x._id === i.id), qty: i.qty }))
     .filter((x): x is { p: P; qty: number } => Boolean(x.p));
+  // Buy Now uses an isolated item list so other products in the bag are never purchased.
+  const checkoutItems = buyNowItems ?? cart;
+  const checkoutEntries = checkoutItems.map((i) => ({ p: products.find((x) => x._id === i.id), qty: i.qty }))
+    .filter((x): x is { p: P; qty: number } => Boolean(x.p));
   const subtotal = entries.reduce((a, x) => a + x.p.price * x.qty, 0);
-  const shipping = subtotal >= freeThreshold ? 0 : flatFee;
-  const total = subtotal + (entries.length ? shipping : 0);
+  const estimatedShipping = subtotal >= freeThreshold ? 0 : flatFee;
+  // A server quote overrides the local estimate as soon as a valid PIN is present.
+  const shipping = deliveryQuote?.quote ? Number(deliveryQuote.quote.amount) : estimatedShipping;
+  const total = deliveryQuote?.pricing ? Number(deliveryQuote.pricing.total) : subtotal + (entries.length ? shipping : 0);
+
+  // Bill values prefer the authoritative server quote; tax is included in MRP.
+  const bill = deliveryQuote?.pricing;
+  const billSubtotal = bill ? Number(bill.subtotal) : checkoutEntries.reduce((a, x) => a + x.p.price * x.qty, 0);
+  const billDiscount = bill ? Number(bill.discount) : 0;
+  const billShipping = bill ? Number(bill.shipping) : shipping;
+  const billTotal = bill ? Number(bill.total) : billSubtotal + (checkoutEntries.length ? billShipping : 0);
+  const canPay = !busy && !quoteBusy && checkoutEntries.length > 0 && Boolean(deliveryQuote?.ok);
+
   const cartCount = cart.reduce((s, x) => s + x.qty, 0);
   const testimonials = typeof settings.testimonials === 'string'
     ? settings.testimonials.split('\n').map((line: string) => {
@@ -277,7 +317,11 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
 
   async function checkout(e: React.FormEvent) {
     e.preventDefault();
-    if (!entries.length) return notice('Your bag is empty', 'error');
+    if (!checkoutEntries.length) return notice('Your bag is empty', 'error');
+    // Never reach the payment gateway until shipping has been resolved server-side.
+    if (!deliveryQuote?.ok || quoteBusy || !/^[1-9]\d{5}$/.test(String(customer.pin || '').trim())) {
+      return notice(deliveryQuote?.error || quoteError || 'Please enter a valid PIN code and wait for delivery charges to be calculated.', 'error');
+    }
     if (!idem.current) idem.current = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now());
     setBusy(true);
     setMessage('');
@@ -285,7 +329,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       const r = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-idempotency-key': idem.current },
-        body: JSON.stringify({ customer, items: cart, coupon }),
+        // The backend recalculates every amount from these values; the client total is never trusted.
+        body: JSON.stringify({ customer, items: checkoutItems, coupon }),
       });
       const x = await r.json();
       if (!r.ok) throw new Error(x.error || 'Checkout unavailable');
@@ -311,14 +356,19 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         prefill: { name: customer.name, email: customer.email, contact: customer.phone },
         theme: { color: '#a54c40' },
         handler: async (response: any) => {
-          const v = await fetch('/api/payments/verify', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(response),
-          });
-          const result = await v.json();
-          if (!v.ok) return notice(result.error || 'Payment verification pending', 'error');
-          setOrder({ number: result.number, token: result.trackingToken });
-          setCart([]); idem.current = '';
-          navigate('success');
+          try {
+            const v = await fetch('/api/payments/verify', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(response),
+            });
+            const result = await v.json();
+            if (!v.ok) return notice(result.error || 'Payment verification pending', 'error');
+            if (result.status !== 'captured') return notice('Payment is authorized but capture is pending. Please contact us before trying again.', 'error');
+            setOrder({ number: result.number, token: result.trackingToken });
+            setCart([]); setBuyNowItems(null); idem.current = '';
+            navigate('success');
+          } catch {
+            notice('Payment verification is pending. Please contact us before trying again.', 'error');
+          }
         },
       });
       instance.on('payment.failed', () => notice('Payment failed. Please try again.', 'error'));
@@ -341,7 +391,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       const x = await r.json();
       if (!r.ok) throw new Error(x.error || 'Simulation failed');
       setOrder({ number: x.number, token: x.trackingToken, simulation: true });
-      setCart([]); idem.current = '';
+      setCart([]); setBuyNowItems(null); idem.current = '';
       navigate('success');
     } catch (e: any) {
       notice(e.message, 'error');
@@ -356,6 +406,136 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     const r = await fetch('/api/track?number=' + encodeURIComponent(track.number) + '&token=' + encodeURIComponent(track.token));
     const x = await r.json();
     setTracking(r.ok ? x : { error: x.error || 'Order not found' });
+  }
+
+  /** Live server quote — the exact same code path checkout uses to charge the customer. */
+  async function refreshQuote(
+    pin = String(customer.pin || '').trim(),
+    items = checkoutItems,
+    couponCode = coupon
+  ) {
+    const seq = ++quoteSeq.current;
+    if (!/^[1-9]\d{5}$/.test(pin) || !items.length) {
+      setDeliveryQuote(null);
+      setQuoteError('');
+      return;
+    }
+    setQuoteBusy(true);
+    try {
+      const r = await fetch('/api/shipping/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, items, coupon: couponCode }),
+      });
+      const x = await r.json();
+      if (seq !== quoteSeq.current) return;
+      if (!r.ok || !x.ok) {
+        if (x.errorCode === 'COUPON_INVALID') {
+          // Keep delivery usable: drop the bad coupon and recalculate without it.
+          setCoupon('');
+          setCouponError(x.error || 'This coupon cannot be applied to your order.');
+          return void refreshQuote(pin, items, '');
+        }
+        setCouponError('');
+        setDeliveryQuote(null);
+        setQuoteError(x.error || 'Delivery is unavailable for this PIN');
+      } else {
+        setDeliveryQuote(x);
+        setQuoteError('');
+      }
+    } catch {
+      if (seq !== quoteSeq.current) return;
+      setDeliveryQuote(null);
+      setQuoteError('Unable to check delivery right now. Please try again.');
+    } finally {
+      if (seq === quoteSeq.current) setQuoteBusy(false);
+    }
+  }
+
+  async function applyCoupon() {
+    const code = couponInput.trim().toUpperCase().slice(0, 50);
+    if (!code) return setCouponError('Enter a coupon code first.');
+    setCouponError('');
+    setCouponBusy(true);
+    setCoupon(code);
+    await refreshQuote(String(customer.pin || '').trim(), checkoutItems, code);
+    setCouponBusy(false);
+  }
+
+  function removeCoupon() {
+    quoteSeq.current += 1;
+    setCoupon('');
+    setCouponInput('');
+    setCouponError('');
+  }
+
+  // Recalculate whenever the delivery PIN, checkout items or applied coupon change.
+  useEffect(() => {
+    const pin = String(customer.pin || '').trim();
+    if (!/^[1-9]\d{5}$/.test(pin) || !checkoutItems.length || page !== 'checkout') {
+      setDeliveryQuote(null);
+      setQuoteError('');
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => { if (!cancelled) void refreshQuote(pin); }, 350);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer.pin, checkoutItems, coupon, page]);
+
+  async function checkDeliveryPin() {
+    const pin = pinCheck.trim();
+    if (!/^\d{6}$/.test(pin)) {
+      setPinCheckResult({ error: 'Enter a valid six-digit PIN code' });
+      return;
+    }
+    setPinCheckBusy(true);
+    try {
+      const r = await fetch('/api/shipping/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, pinOnly: true }),
+      });
+      const x = await r.json();
+      setPinCheckResult(x.ok ? { ok: true, ...x.quote } : { error: x.error || 'Delivery unavailable at this PIN' });
+    } catch {
+      setPinCheckResult({ error: 'Unable to check delivery right now' });
+    } finally {
+      setPinCheckBusy(false);
+    }
+  }
+
+  // Show the latest shipment status on the confirmation page.
+  useEffect(() => {
+    if (page !== 'success' || !order?.number || !order?.token) return;
+    let cancelled = false;
+    fetch('/api/track?number=' + encodeURIComponent(order.number) + '&token=' + encodeURIComponent(order.token))
+      .then((r) => r.json())
+      .then((x) => { if (!cancelled) setOrderTracking(x); })
+      .catch(() => { if (!cancelled) setOrderTracking({ error: 'Tracking temporarily unavailable' }); });
+    return () => { cancelled = true; };
+  }, [page, order]);
+
+  function trackingView(data: any) {
+    if (!data) return null;
+    if (data.error) return <p className="muted tiny pin-error" role="alert">{data.error}</p>;
+    const shipment = data.order?.shipment;
+    const t = data.tracking;
+    if (!shipment?.awb) return <p className="muted tiny">Shipment details will appear here once your order is packed.</p>;
+    return <div className="tracking-card">
+      <h3>Shipment tracking</h3>
+      <p><strong>AWB:</strong> {shipment.awb}{shipment.simulated ? <span className="sim-label"> (SIMULATED)</span> : ''}</p>
+      {t?.status && <p><strong>Status:</strong> {t.description || t.status}</p>}
+      {t?.expected && <p><strong>Expected:</strong> {t.expected}</p>}
+      {Array.isArray(t?.timeline) && t.timeline.length > 0 && <ol className="tracking-timeline">
+        {t.timeline.map((event: any, i: number) => <li key={i}>
+          <strong>{event.status}</strong>{event.location ? ` — ${event.location}` : ''}
+          {event.at ? <small> {String(event.at).slice(0, 24)}</small> : null}
+        </li>)}
+      </ol>}
+      {data.shipmentTracking?.error && <p className="muted tiny">{data.shipmentTracking.error}</p>}
+      {!t && <p className="muted tiny">Live tracking is temporarily unavailable. Please check back soon.</p>}
+    </div>;
   }
 
   function tile(p: P) {
@@ -569,6 +749,20 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
             <button className="primary-button" onClick={() => add(selected._id)}>Add to Bag →</button>
             <button className="outline-button" onClick={() => buyNow(selected._id)}>Buy Now →</button>
           </div>
+          <div className="pin-checker">
+            <label htmlFor="product-pin">Check delivery at your PIN code</label>
+            <div className="pin-check-row">
+              <input id="product-pin" inputMode="numeric" autoComplete="postal-code" maxLength={6} placeholder="e.g. 518502"
+                value={pinCheck} onChange={(e) => setPinCheck(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+              <button type="button" className="outline-button" disabled={pinCheckBusy} onClick={checkDeliveryPin}>
+                {pinCheckBusy ? 'Checking…' : 'Check'}
+              </button>
+            </div>
+            {pinCheckResult?.error && <p className="muted tiny pin-error" role="alert">{pinCheckResult.error}</p>}
+            {pinCheckResult?.ok && <p className="muted tiny pin-ok" role="status">
+              ✓ Delivery available{pinCheckResult.serviceability?.city ? ` in ${pinCheckResult.serviceability.city}` : ''}. {pinCheckResult.note}
+            </p>}
+          </div>
         </div>
       </div>
       {products.some((p) => p._id !== selected._id && p.category === selected.category) && <section className="related-products">
@@ -599,31 +793,77 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           <div><span>Subtotal</span><strong>₹{subtotal}</strong></div>
           <div><span>Shipping</span><strong>{shipping === 0 ? 'Free' : '₹' + shipping}</strong></div>
           <div className="summary-total"><span>Total</span><strong>₹{total}</strong></div>
-          <button className="primary-button full" onClick={() => navigate('checkout')}>Continue to Checkout →</button>
+          <button className="primary-button full" onClick={continueFromCart}>Continue to Checkout →</button>
         </aside>
       </div> : <div className="empty"><ShoppingBag size={44} /><h2>Your bag is waiting for something sweet.</h2><button className="primary-button" onClick={() => navigate('shop')}>Shop Treats →</button></div>}
     </main>}
 
     {page === 'checkout' && <main className="page-shell">
       <div className="eyebrow">NO ACCOUNT REQUIRED</div><h1>Guest <i>Checkout</i></h1>
-      <div className="checkout-grid">
+      <ol className="checkout-steps" aria-label="Checkout progress">
+        {['Bag', 'Bill summary', 'Delivery details', 'Payment', 'Confirmation'].map((step, i) =>
+          <li key={step} className={i === 2 ? 'active' : i < 2 ? 'done' : ''}><span>{i + 1}</span>{step}</li>)}
+      </ol>
+      {buyNowItems && <p className="muted tiny">Buying this item directly — other products in your bag are not included.</p>}
+      {!checkoutEntries.length && <div className="empty"><ShoppingBag size={40} /><h2>Your bag is empty.</h2><button className="primary-button" onClick={() => navigate('shop')}>Shop Treats →</button></div>}
+      {!!checkoutEntries.length && <div className="checkout-grid">
         <form className="checkout-form" onSubmit={checkout}>
           <h2>Delivery Details</h2>
-          {([['name', 'Full Name'], ['email', 'Email Address'], ['phone', 'Mobile Number'], ['address', 'Street Address'], ['city', 'City'], ['state', 'State'], ['pin', 'PIN Code']] as const).map(([k, label]) => (
-            <label key={k}>{label}<input required type={k === 'email' ? 'email' : 'text'} value={customer[k]} onChange={(e) => setCustomer((c) => ({ ...c, [k]: e.target.value }))} /></label>
+          {([
+            ['name', 'Full name', 'text'], ['phone', 'Phone number', 'tel'], ['email', 'Email address', 'email'],
+            ['houseNo', 'House/flat number', 'text'], ['street', 'Street and area', 'text'],
+            ['landmark', 'Landmark (optional)', 'text'], ['city', 'City', 'text'], ['state', 'State', 'text'],
+          ] as const).map(([k, label, type]) => (
+            <label key={k}>{label}
+              <input required={k !== 'landmark'} type={type} autoComplete={{ name: 'name', phone: 'tel', email: 'email', city: 'address-level2', state: 'address-level1', houseNo: 'address-line1', street: 'address-line2' }[k]}
+                value={customer[k]} onChange={(e) => setCustomer((c) => ({ ...c, [k]: e.target.value }))} />
+            </label>
           ))}
-          <label>Coupon code (optional)<input value={coupon} onChange={(e) => setCoupon(e.target.value)} /></label>
-          <button className="primary-button full" disabled={busy || !entries.length}>{busy ? 'Preparing payment…' : 'Pay Securely →'}</button>
-          <p className="muted tiny">Final totals are calculated on the server. No account needed.</p>
+          <label>PIN code
+            <div className="pin-check-row">
+              <input required inputMode="numeric" autoComplete="postal-code" maxLength={6} placeholder="e.g. 518502"
+                value={customer.pin} onChange={(e) => setCustomer((c) => ({ ...c, pin: e.target.value.replace(/\D/g, '').slice(0, 6) }))} />
+              <button type="button" className="outline-button" disabled={quoteBusy} onClick={() => void refreshQuote()}>{quoteBusy ? 'Checking…' : 'Check'}</button>
+            </div>
+          </label>
+          {quoteBusy && <p className="muted tiny" role="status">Checking delivery and calculating charges…</p>}
+          {quoteError && <p className="muted tiny pin-error" role="alert">{quoteError}</p>}
+          {deliveryQuote?.quote && !quoteError && <p className="muted tiny pin-ok" role="status">
+            ✓ Delivery available to {deliveryQuote.quote.destinationPin} — {deliveryQuote.quote.amount === 0 ? 'free delivery' : '₹' + deliveryQuote.quote.amount + ' delivery'}. {deliveryQuote.quote.note}
+          </p>}
+          <h3 className="payment-heading">Payment</h3>
+          <button className="primary-button full" type="submit" disabled={!canPay}>
+            {busy ? 'Preparing payment…' : quoteBusy ? 'Checking delivery…' : 'Pay Securely →'}
+          </button>
+          {!deliveryQuote?.ok && !quoteError && <p className="muted tiny">Enter a valid PIN code to calculate delivery and enable payment.</p>}
+          <p className="muted tiny">All amounts are recalculated on the server. Your details are kept if payment fails.</p>
           <p className="muted tiny">Need help? <a href={'mailto:' + email}>{email}</a> · <a href={'tel:' + String(phone).replace(/[^\d+]/g, '')}>{phone}</a></p>
         </form>
         <aside className="summary">
           <h3>Order Summary</h3>
-          {entries.map(({ p, qty }) => <div key={p._id}><span>{p.name} × {qty}</span><strong>₹{p.price * qty}</strong></div>)}
-          <div><span>Shipping</span><strong>{shipping === 0 ? 'Free' : '₹' + shipping}</strong></div>
-          <div className="summary-total"><span>Estimated total</span><strong>₹{total}</strong></div>
+          <div className="bill-items">
+            {checkoutEntries.map(({ p, qty }) => <div key={p._id}><span>{p.name} × {qty}</span><strong>₹{p.price * qty}</strong></div>)}
+          </div>
+          <div><span>Product subtotal</span><strong>₹{billSubtotal}</strong></div>
+          {billDiscount > 0 && <div className="bill-discount"><span>Discount{coupon ? ` (${coupon})` : ''}</span><strong>− ₹{billDiscount}</strong></div>}
+          <div><span>Taxes</span><strong>Included in MRP</strong></div>
+          <div><span>Delivery charges{quoteBusy ? ' (updating…)' : ''}</span><strong>{billShipping === 0 ? 'Free' : '₹' + billShipping}</strong></div>
+          <div className="summary-total"><span>{deliveryQuote ? 'Final payable amount' : 'Estimated total'}</span><strong>₹{billTotal}</strong></div>
+          <div className="coupon-box">
+            <label htmlFor="coupon-code">Have a coupon? <span className="muted tiny">(optional)</span></label>
+            <div className="coupon-row">
+              <input id="coupon-code" value={couponInput} placeholder="Enter coupon code"
+                onChange={(e) => { setCouponInput(e.target.value.toUpperCase().slice(0, 50)); setCouponError(''); }} />
+              <button type="button" className="outline-button" disabled={couponBusy || !couponInput.trim() || quoteBusy} onClick={() => void applyCoupon()}>
+                {couponBusy ? 'Applying…' : 'Apply Coupon'}
+              </button>
+            </div>
+            {coupon && <div className="coupon-applied"><span>✓ {coupon} applied</span><button type="button" onClick={removeCoupon}>Remove</button></div>}
+            {couponError && <p className="muted tiny pin-error" role="alert">{couponError}</p>}
+            <p className="muted tiny">Coupons are validated on the server. You can continue without one.</p>
+          </div>
         </aside>
-      </div>
+      </div>}
     </main>}
 
     {page === 'simulation' && sim && <main className="page-shell prose">
@@ -647,9 +887,22 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         <div className="token-box"><code>{order?.token}</code><button className="iconbtn" aria-label="Copy token" onClick={() => { navigator.clipboard?.writeText(order?.token || ''); setCopied(true); }}>{copied ? <Check /> : <Copy />}</button></div>
         <p className="muted">Save your order number and token above to track your order later.</p>
       </div>
+      {trackingView(orderTracking)}
     </main>}
 
 
+
+    {page === 'track' && <main className="page-shell prose">
+      <div className="eyebrow">STAY IN THE LOOP</div>
+      <h1>Track your <i>order</i></h1>
+      <p className="muted">Enter the order number and the private token from your confirmation page.</p>
+      <form className="checkout-form track-form" onSubmit={findOrder}>
+        <label>Order number<input required value={track.number} onChange={(e) => setTrack((t) => ({ ...t, number: e.target.value }))} placeholder="CC-…" /></label>
+        <label>Private tracking token<input required value={track.token} onChange={(e) => setTrack((t) => ({ ...t, token: e.target.value }))} /></label>
+        <button className="primary-button" type="submit">Track order →</button>
+      </form>
+      {tracking && trackingView(tracking)}
+    </main>}
 
     {page === 'about' && <StoryPage content={content.find((c) => c.key === 'our-story')?.value || {}} products={products} loading={loading} tile={tile} />}
 
@@ -684,6 +937,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           <button onClick={() => navigate('policies', { policy: 'shipping' })}>Shipping &amp; Delivery</button>
           <button onClick={() => navigate('policies', { policy: 'privacy' })}>Privacy Policy</button>
           <button onClick={() => navigate('policies', { policy: 'terms' })}>Terms of Service</button>
+          <button onClick={() => navigate('track')}>Track your order</button>
           <button onClick={() => navigate('contact')}>Contact</button>
         </div>
         <div>

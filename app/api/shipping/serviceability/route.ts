@@ -1,13 +1,32 @@
-import { serviceability } from '@/lib/delhivery';
+import { checkPinServiceability, getShippingSettings } from '@/lib/shipping-service';
+
+export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
   const pin = new URL(req.url).searchParams.get('pin') || '';
-  if (!/^\d{6}$/.test(pin)) return Response.json({ error: 'Enter a valid six-digit PIN' }, { status: 400 });
-  try {
-    const result = await serviceability(pin);
-    if (!result.configured) return Response.json({ error: 'Delhivery not configured' }, { status: 503 });
-    return Response.json({ serviceable: result.serviceable, details: result.details });
-  } catch {
-    return Response.json({ error: 'Unable to verify serviceability' }, { status: 503 });
+  const settings = await getShippingSettings();
+  const result = await checkPinServiceability(pin, settings);
+  if (!result.serviceable && result.errorCode === 'PIN_INVALID') {
+    return Response.json({ error: result.error }, { status: 400 });
   }
+  if (!result.serviceable) {
+    return Response.json(
+      {
+        // Never leak carrier configuration details to customers.
+        error: result.error || 'Delivery is currently unavailable. Please contact the store.',
+        errorCode: result.errorCode,
+      },
+      { status: result.errorCode === 'SHIPPING_UNAVAILABLE' ? 400 : 503 }
+    );
+  }
+  return Response.json({
+    serviceable: result.serviceable,
+    simulated: result.simulated,
+    configured: result.configured,
+    method: result.mode,
+    note: result.note,
+    city: result.city,
+    state: result.state,
+    details: result.details,
+  });
 }

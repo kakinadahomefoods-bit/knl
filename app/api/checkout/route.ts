@@ -1,17 +1,10 @@
 import { db } from '@/lib/db';
-import { Order, Product, Coupon, Payment } from '@/lib/models';
+import { Order, Payment } from '@/lib/models';
 import { clean } from '@/lib/security';
-import { validateCart, validateCustomer } from '@/lib/validation';
-import { calculatePricing } from '@/lib/pricing';
-import {
-  delhiveryConfigured,
-  flatShippingFee,
-  freeShippingThreshold,
-  paymentSimulationEnabled,
-  razorpayConfigured,
-  shippingSimulationEnabled,
-} from '@/lib/config';
+import { formatAddress, validateCart, validateCustomer } from '@/lib/validation';
+import { paymentSimulationEnabled, razorpayConfigured } from '@/lib/config';
 import { simulationOrderId } from '@/lib/simulation';
+import { quoteForCart } from '@/lib/shipping-service';
 import Razorpay from 'razorpay';
 import crypto from 'node:crypto';
 
@@ -26,6 +19,9 @@ type CheckoutResponse = {
   currency: string;
   simulation: boolean;
   shippingSimulation: boolean;
+  shipping: number;
+  total: number;
+  shippingMethod: string;
 };
 
 export async function POST(req: Request) {
@@ -36,33 +32,11 @@ export async function POST(req: Request) {
     const cartError = validateCart(body.items);
     if (cartError) return Response.json({ error: cartError }, { status: 400 });
 
-    const c = body.customer;
-    const pin = String(c.pin).trim();
-
-    // PIN serviceability: live Delhivery when configured, otherwise explicit dev simulation.
-    let shippingSimulation = false;
-    if (delhiveryConfigured()) {
-      const base = (process.env.DELHIVERY_API_BASE_URL || 'https://track.delhivery.com').replace(/\/$/, '');
-      const service = await fetch(base + '/c/api/pin-codes/json/?filter_codes=' + encodeURIComponent(pin), {
-        headers: { Authorization: 'Token ' + process.env.DELHIVERY_API_TOKEN },
-        cache: 'no-store',
-      });
-      if (!service.ok) return Response.json({ error: 'Delivery service temporarily unavailable' }, { status: 503 });
-      const check = await service.json();
-      if (!Array.isArray(check.delivery_codes) || !check.delivery_codes.length) {
-        return Response.json({ error: 'Delivery unavailable at this PIN code' }, { status: 400 });
-      }
-    } else if (shippingSimulationEnabled()) {
-      shippingSimulation = true;
-    } else {
-      return Response.json({ error: 'Delivery service is not configured' }, { status: 503 });
-    }
-
-    await db();
-
-    // Idempotency: a retried request (network retry / double click) returns the original order.
     const headerKey = req.headers.get('x-idempotency-key');
     const idempotencyKey = clean(headerKey || body.idempotencyKey, 120) || undefined;
+    await db();
+
+    // A retried request (network retry / double click) returns the original order.
     if (idempotencyKey) {
       const existing = await Order.findOne({ idempotencyKey }).lean() as any;
       if (existing) {
@@ -71,39 +45,32 @@ export async function POST(req: Request) {
           number: existing.number,
           razorpayOrderId: existing.razorpayOrderId,
           key: existing.simulation ? '' : process.env.RAZORPAY_KEY_ID || '',
-          amount: Math.round(existing.total * 100),
+          amount: Math.round((existing.total || 0) * 100),
           currency: 'INR',
           simulation: Boolean(existing.simulation),
-          shippingSimulation: Boolean(existing.shipment?.simulated) || shippingSimulation,
+          shippingSimulation: Boolean(existing.shipment?.simulated),
+          shipping: Number(existing.shipping) || 0,
+          total: Number(existing.total) || 0,
+          shippingMethod: String(existing.shippingMethod || (existing.simulation ? 'simulation' : 'delhivery')),
         } satisfies CheckoutResponse);
       }
     }
 
-    let subtotal = 0;
-    const items: any[] = [];
-    for (const item of body.items) {
-      const p = await Product.findById(item.id);
-      const qty = Number(item.qty);
-      if (!p || !p.published) {
-        return Response.json({ error: 'Item unavailable' }, { status: 409 });
-      }
-      subtotal += p.price * qty;
-      items.push({
-        productId: String(p._id),
-        name: p.name,
-        price: p.price,
-        qty,
-        image: p.images?.[0] || '',
-      });
+    // Single authoritative quote: PIN serviceability, packed weight/dimensions and
+    // the configured shipping rule. The browser estimate uses this same code path.
+    const quoted = await quoteForCart({
+      pin: String(body.customer.pin).trim(),
+      items: body.items,
+      coupon: body.coupon,
+    });
+    if (!quoted.ok || !quoted.pricing || !quoted.quote) {
+      return Response.json(
+        { error: quoted.error || 'Delivery unavailable', errorCode: quoted.errorCode },
+        { status: quoted.status || 400 }
+      );
     }
-
-    let couponDoc: any = null;
-    if (body.coupon) {
-      const code = clean(body.coupon, 50).toUpperCase();
-      couponDoc = await Coupon.findOne({ code });
-    }
-    const pricing = calculatePricing(subtotal, couponDoc, freeShippingThreshold(), flatShippingFee());
-    if ('error' in pricing) return Response.json({ error: pricing.error }, { status: 400 });
+    const pricing = quoted.pricing;
+    const quote = quoted.quote;
 
     const simulation = paymentSimulationEnabled();
     if (!razorpayConfigured() && !simulation) {
@@ -132,18 +99,38 @@ export async function POST(req: Request) {
         number,
         idempotencyKey,
         customer: {
-          name: clean(c.name, 120),
-          email: clean(c.email, 200),
-          phone: clean(c.phone, 20),
-          address: clean(c.address, 500),
-          city: clean(c.city, 120),
-          state: clean(c.state, 120),
-          pin: clean(c.pin, 10),
+          name: clean(body.customer.name, 120),
+          email: clean(body.customer.email, 200),
+          phone: clean(body.customer.phone, 20),
+          houseNo: clean(body.customer.houseNo, 80),
+          street: clean(body.customer.street, 200),
+          landmark: clean(body.customer.landmark, 120),
+          address: clean(formatAddress(body.customer), 500),
+          city: clean(body.customer.city, 120),
+          state: clean(body.customer.state, 120),
+          pin: clean(body.customer.pin, 10),
         },
-        items,
+        items: pricing.items,
         inventoryMode: 'unlimited',
         subtotal: pricing.subtotal,
         shipping: pricing.shipping,
+        shippingMethod: quote.method,
+        fulfillmentStatus: 'new_order',
+        ...(quote.method === 'manual' ? { shipment: { status: 'manual_processing' } } : {}),
+        shippingQuote: {
+          method: quote.method,
+          amount: quote.amount,
+          baseAmount: quote.baseAmount,
+          currency: quote.currency,
+          source: quote.source,
+          simulated: quote.simulated,
+          serviceable: quote.serviceable,
+          pickupPin: quote.pickupPin,
+          destinationPin: quote.destinationPin,
+          freeShippingApplied: quote.freeShippingApplied,
+          note: quote.note,
+          parcel: quote.parcel,
+        },
         discount: pricing.discount,
         coupon: pricing.coupon,
         total: pricing.total,
@@ -168,7 +155,10 @@ export async function POST(req: Request) {
         amount: Math.round(amount * 100),
         currency: 'INR',
         simulation,
-        shippingSimulation,
+        shippingSimulation: quote.simulated,
+        shipping: pricing.shipping,
+        total: pricing.total,
+        shippingMethod: quote.method,
       } satisfies CheckoutResponse);
     } catch (e: any) {
       if (e?.code === 11000 && idempotencyKey) {
@@ -179,10 +169,12 @@ export async function POST(req: Request) {
             number: existing.number,
             razorpayOrderId: existing.razorpayOrderId,
             key: existing.simulation ? '' : process.env.RAZORPAY_KEY_ID || '',
-            amount: Math.round(existing.total * 100),
+            amount: Math.round((existing.total || 0) * 100),
             currency: 'INR',
             simulation: Boolean(existing.simulation),
-            shippingSimulation,
+            shippingSimulation: Boolean(existing.shipment?.simulated),
+            shipping: Number(existing.shipping) || 0,
+            total: Number(existing.total) || 0,
           } satisfies CheckoutResponse);
         }
       }

@@ -25,8 +25,8 @@ test.describe('Guest checkout', () => {
       localStorage.setItem('cruvita-cart', JSON.stringify([{ id, qty: 1 }]));
     }, p._id);
     await page.reload();
-    await page.click('button:has-text("Bag")');
-    await page.click('button:has-text("Guest Checkout")');
+    await page.click('[aria-label="Shopping bag"]');
+    await page.click('button:has-text("Continue to Checkout")');
     await expect(page.getByRole('heading', { name: /Guest Checkout/i })).toBeVisible();
 
     const inputs = page.locator('input');

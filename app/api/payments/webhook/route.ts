@@ -7,7 +7,7 @@ import { razorpayWebhookConfigured } from '@/lib/config';
 export const runtime = 'nodejs';
 
 function safeEqual(a: string, b: string) {
-  return a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  return /^[a-f0-9]{64}$/.test(a) && crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 }
 
 export async function POST(req: Request) {
@@ -24,15 +24,21 @@ export async function POST(req: Request) {
 
     if (eventName === 'payment.captured' || eventName === 'order.paid') {
       const pay = event.payload?.payment?.entity;
-      const orderId = String(pay?.order_id || event.payload?.order?.entity?.id || '');
+      const orderId = String(pay?.order_id || '');
+      if (!orderId || typeof pay?.id !== 'string' || !pay.id ||
+          pay.status !== 'captured' || !Number.isSafeInteger(pay.amount) ||
+          typeof pay.currency !== 'string' ||
+          (eventName === 'order.paid' && event.payload?.order?.entity?.id !== orderId)) {
+        return Response.json({ error: 'Incomplete captured payment' }, { status: 400 });
+      }
       if (orderId) {
         await db();
         const order = await Order.findOne({ razorpayOrderId: orderId });
         // Never let a webhook finalize a locally simulated order.
         if (order && !order.simulation) {
           const expectedAmount = Math.round((order.total || 0) * 100);
-          const amountOk = pay?.amount == null || Number(pay.amount) === expectedAmount;
-          const currencyOk = pay?.currency == null || String(pay.currency).toUpperCase() === 'INR';
+          const amountOk = pay.amount === expectedAmount;
+          const currencyOk = pay.currency.toUpperCase() === 'INR';
           if (!amountOk || !currencyOk) {
             console.error('[webhook] amount/currency mismatch for order', orderId);
             return Response.json({ error: 'Payment amount mismatch' }, { status: 409 });
@@ -52,7 +58,7 @@ export async function POST(req: Request) {
         const order = await Order.findOne({ razorpayOrderId: orderId });
         if (order && !order.simulation) {
           await Payment.updateOne(
-            { razorpayOrderId: orderId },
+            { razorpayOrderId: orderId, status: { $nin: ['captured', 'refunded'] } },
             {
               $set: {
                 ...(pay?.id ? { razorpayPaymentId: pay.id } : {}),

@@ -8,7 +8,7 @@ import { simulationSignature } from '@/lib/simulation';
 export const runtime = 'nodejs';
 
 function safeEqual(a: string, b: string) {
-  return a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  return /^[a-f0-9]{64}$/.test(a) && crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 }
 
 export async function POST(req: Request) {
@@ -22,6 +22,10 @@ export async function POST(req: Request) {
     await db();
     const order = await Order.findOne({ razorpayOrderId: orderId });
     if (!order) return Response.json({ error: 'Order not found' }, { status: 404 });
+    if (!['pending', 'paid'].includes(order.paymentStatus) ||
+        (order.paymentStatus === 'paid' && order.razorpayPaymentId !== paymentId)) {
+      return Response.json({ error: 'Order payment already finalized' }, { status: 409 });
+    }
 
     // A dev-simulated order can only be finalized through the simulation path.
     if (order.simulation) {
@@ -62,6 +66,7 @@ export async function POST(req: Request) {
     const payment = await r.json();
     if (
       payment.order_id !== order.razorpayOrderId ||
+      payment.id !== paymentId ||
       payment.amount !== Math.round(order.total * 100) ||
       String(payment.currency || '').toUpperCase() !== 'INR' ||
       !['captured', 'authorized'].includes(payment.status)
@@ -70,7 +75,7 @@ export async function POST(req: Request) {
     }
 
     await Payment.updateOne(
-      { razorpayOrderId: orderId },
+      { razorpayOrderId: orderId, status: { $nin: ['captured', 'refunded'] } },
       {
         $set: {
           razorpayPaymentId: paymentId,

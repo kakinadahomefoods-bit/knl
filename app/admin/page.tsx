@@ -142,6 +142,7 @@ export default function Admin() {
         ...edit,
         price: Number(edit.price), compareAt: edit.compareAt ? Number(edit.compareAt) : undefined,
         stock: Number(edit.stock), lowStockAt: Number(edit.lowStockAt ?? 5), weightGrams: Number(edit.weightGrams || 250),
+        lengthCm: Number(edit.lengthCm || 20), breadthCm: Number(edit.breadthCm || 15), heightCm: Number(edit.heightCm || 10),
         images: typeof edit.images === 'string' ? edit.images.split(',').map((s: string) => s.trim()).filter(Boolean) : edit.images || [],
         tags: typeof edit.tags === 'string' ? edit.tags.split(',').map((s: string) => s.trim()).filter(Boolean) : edit.tags || [],
       };
@@ -257,7 +258,8 @@ export default function Admin() {
         </div>)}</div>
         {'name' in edit && <form className="checkout-form" onSubmit={saveProduct}>
           <h2>{edit._id ? 'Edit' : 'Add'} Product</h2>
-          {['name', 'slug', 'category', 'description', 'price', 'compareAt', 'stock', 'lowStockAt', 'weightGrams', 'tags'].map((k) => field(k, k === 'lowStockAt' ? 'Low stock alert at' : k, k === 'description' || k === 'tags'))}
+          {['name', 'slug', 'category', 'description', 'price', 'compareAt', 'stock', 'lowStockAt', 'weightGrams', 'lengthCm', 'breadthCm', 'heightCm', 'tags'].map((k) => field(k, k === 'lowStockAt' ? 'Low stock alert at' : k === 'weightGrams' ? 'Weight (grams)' : ['lengthCm', 'breadthCm', 'heightCm'].includes(k) ? k.replace('Cm', '') + ' (cm)' : k, k === 'description' || k === 'tags'))}
+          <p className="muted tiny">Weight and dimensions feed the delivery quote and the shipment manifest when a rate fallback is enabled.</p>
           <label><input type="checkbox" checked={!!edit.published} onChange={(e) => setEdit((v) => ({ ...v, published: e.target.checked }))} /> Published</label>
           <label><input type="checkbox" checked={!!edit.featured} onChange={(e) => setEdit((v) => ({ ...v, featured: e.target.checked }))} /> Featured</label>
           <label>Image URLs (comma-separated)<textarea value={Array.isArray(edit.images) ? edit.images.join(', ') : edit.images || ''} onChange={(e) => setEdit((v) => ({ ...v, images: e.target.value }))} /></label>
@@ -295,6 +297,9 @@ export default function Admin() {
       {tab === 'Orders' && <div className="admin-panel">{items.map((o) => <div className="admin-line" key={o._id}>
         <span>{o.number} — ₹{o.total} — {o.paymentStatus} / {o.fulfillmentStatus} — {o.customer?.name} — {o.customer?.pin}{o.simulation ? ' (SIMULATED)' : ''}</span>
         <button onClick={async () => { try { const x = await api('/api/admin/orders/' + o._id); setDetail(x.order); } catch (e: any) { report(e.message, true); } }}>View</button>
+        {o.paymentStatus === 'paid' && !o.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: o._id, retry: o.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Orders'); } catch (e: any) { report(e.message, true); load('Orders'); } }}>{o.shipment?.creationState === 'failed' ? 'Retry shipment' : 'Create shipment'}</button>}
+        {o.shipment?.awb && <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(o._id)} target="_blank" rel="noopener">Label</a>}
+        {o.shipment?.error && <small className="stat-small">Shipping error: {o.shipment.error}</small>}
         <button onClick={async () => { try { await api('/api/admin/orders/' + o._id + '/reconcile', 'POST'); report('Reconciled', false); load('Orders'); } catch (e: any) { report(e.message, true); } }}>Reconcile</button>
         <button disabled={o.paymentStatus !== 'paid' && o.paymentStatus !== 'partially_refunded'} onClick={async () => {
           const amt = prompt('Refund amount (blank = full)', String(o.total - (o.refundAmount || 0)));
@@ -310,9 +315,16 @@ export default function Admin() {
       </div>)}</div>}
 
       {tab === 'Shipments' && <div className="admin-panel">{items.map((s) => <div className="admin-line" key={s._id}>
-        <span>{s.number} — AWB {s.shipment?.awb} — {s.shipment?.status}{s.shipment?.simulated ? ' (SIMULATED)' : ''} — {s.customer?.name}</span>
-        <button onClick={async () => { try { const x = await api('/api/shipping/track?awb=' + encodeURIComponent(s.shipment.awb)); setDetail(x); } catch (e: any) { report(e.message, true); } }}>Track</button>
-        <button onClick={async () => { try { await api('/api/shipping/cancel', 'POST', { orderId: s._id }); report('Shipment cancelled', false); load('Shipments'); } catch (e: any) { report(e.message, true); } }}>Cancel</button>
+        <span>
+          {s.number} — {s.shipment?.awb ? <>AWB {s.shipment.awb} — {s.shipment.status || 'created'}</> : <>no AWB — {s.shipment?.creationState || 'awaiting payment'}</>}
+          {s.shipment?.simulated ? ' (SIMULATED)' : ''} — {s.customer?.name}
+          {s.shippingQuote?.parcel?.billableWeightGrams ? <small className="stat-small"> · {s.shippingQuote.parcel.billableWeightGrams} g · {s.shippingQuote.source}</small> : null}
+          {s.shipment?.error ? <small className="stat-small"> · {s.shipment.error}</small> : null}
+        </span>
+        {s.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/track?awb=' + encodeURIComponent(s.shipment.awb)); setDetail(x); } catch (e: any) { report(e.message, true); } }}>Track</button>}
+        {s.shipment?.awb && <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(s._id)} target="_blank" rel="noopener">Label</a>}
+        {!s.shipment?.awb && s.paymentStatus === 'paid' && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: s._id, retry: s.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Shipments'); } catch (e: any) { report(e.message, true); load('Shipments'); } }}>{s.shipment?.creationState === 'failed' ? 'Retry' : 'Create shipment'}</button>}
+        {s.shipment?.awb && <button onClick={async () => { try { await api('/api/shipping/cancel', 'POST', { orderId: s._id }); report('Shipment cancelled', false); load('Shipments'); } catch (e: any) { report(e.message, true); } }}>Cancel</button>}
       </div>)}</div>}
       {tab === 'Shipments' && detail && <div className="tracking-card"><pre style={{ whiteSpace: 'pre-wrap', textAlign: 'left', maxHeight: 320, overflow: 'auto' }}>{JSON.stringify(detail, null, 2)}</pre><button onClick={() => setDetail(null)}>Close</button></div>}
 
@@ -455,6 +467,7 @@ export default function Admin() {
           ['email', 'Contact email'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp number'], ['address', 'Address'], ['fssaiLicense', 'FSSAI licence number'], ['about', 'About text'],
           ['freeShippingThreshold', 'Free shipping above (₹)'], ['flatShippingFee', 'Flat shipping fee (₹)'],
         ].map(([k, l]) => <label key={k}>{l}<textarea value={settings[k] ?? ''} onChange={(e) => setSettings((v) => ({ ...v, [k]: e.target.value }))} /></label>)}
+        <p className="muted tiny">These two shipping values are used by both the storefront estimate and the server-side total. Delhivery credentials, pickup PIN and the optional weight/PIN rate fallback are configured in secure server environment variables only.</p>
         <label>Homepage testimonials (one approved review per line: Name | Review)
           <textarea value={settings.testimonials ?? ''} onChange={(e) => setSettings((v) => ({ ...v, testimonials: e.target.value }))} />
         </label>

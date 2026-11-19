@@ -17,7 +17,26 @@ export const paymentSimulationEnabled = () => !razorpayConfigured() && devSimula
 
 export const delhiveryConfigured = () => Boolean(process.env.DELHIVERY_API_TOKEN);
 
+/** Admin Settings is authoritative; this env value is the server-side default. */
+export const delhiveryEnabled = () => process.env.DELHIVERY_ENABLED === 'true';
+
+export type FallbackShippingMethod = 'none' | 'flat_fee' | 'rate_card';
+
+/** Approved manual shipping method used when Delhivery is unavailable. The flat
+ *  fee is already a configured store rule, so it is the safe default. */
+export const defaultFallbackShippingMethod = (): FallbackShippingMethod => {
+  const value = process.env.SHIPPING_FALLBACK_METHOD;
+  return value === 'none' || value === 'rate_card' ? value : 'flat_fee';
+};
+
 export const shippingSimulationEnabled = () => !delhiveryConfigured() && devSimulationAllowed();
+
+/** Live freight quotes are account-specific; this stays false until the account's
+ *  "Calculate Shipping Cost" API details are supplied from the developer portal. */
+export const delhiveryRateApiEnabled = () => process.env.DELHIVERY_RATE_API_ENABLED === 'true';
+
+/** Approved configurable fallback (weight/PIN based). Off unless explicitly enabled. */
+export const shippingRateFallbackEnabled = () => process.env.SHIPPING_RATE_FALLBACK === 'true';
 
 export const emailConfigured = () => Boolean(process.env.EMAIL_PROVIDER_API_KEY);
 

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { db } from '@/lib/db';
 import { Order, Product, Coupon, Payment } from '@/lib/models';
 import { notifyOrder, orderConfirmationEmail, paymentConfirmationEmail, deliveryEmail } from '@/lib/email';
+import { createShipmentForOrder } from '@/lib/shipping-service';
 
 export type FinalizeMeta = {
   paymentId?: string;
@@ -9,6 +10,21 @@ export type FinalizeMeta = {
   signatureVerified?: boolean;
   method?: string;
 };
+
+/** Creates the AWB once per paid order. Failures are recorded on the order and
+ *  never roll back payment finalization; the admin can retry explicitly. */
+async function finalizeShipment(orderId: string) {
+  try {
+    const result = await createShipmentForOrder(orderId);
+    if (result.manual) return Order.findById(orderId);
+    if (!result.ok && !result.alreadyCreated) {
+      console.error('[fulfillment] automatic shipment creation failed:', result.error);
+    }
+  } catch (error) {
+    console.error('[fulfillment] automatic shipment creation threw:', (error as Error).message);
+  }
+  return Order.findById(orderId);
+}
 
 /**
  * Idempotent finalization:
@@ -23,10 +39,11 @@ export async function finalizePayment(razorpayOrderId: string, meta: FinalizeMet
   const paymentId = meta.paymentId;
 
   const paidOrder = await Order.findOneAndUpdate(
-    { razorpayOrderId, paymentStatus: { $ne: 'paid' } },
+    { razorpayOrderId, paymentStatus: 'pending' },
     {
       $set: {
         paymentStatus: 'paid',
+        fulfillmentStatus: 'new_order',
         ...(paymentId ? { razorpayPaymentId: paymentId } : {}),
         ...(meta.simulation ? { simulation: true } : {}),
       },
@@ -35,6 +52,10 @@ export async function finalizePayment(razorpayOrderId: string, meta: FinalizeMet
   );
   const order = paidOrder || (await Order.findOne({ razorpayOrderId }));
   if (!order) return null;
+  // Replayed capture events must never undo a refund or replace the payment
+  // associated with an already-finalized order.
+  if (order.paymentStatus !== 'paid' ||
+      (!paidOrder && order.razorpayPaymentId && order.razorpayPaymentId !== paymentId)) return order;
 
   if (paymentId) {
     try {
@@ -63,7 +84,10 @@ export async function finalizePayment(razorpayOrderId: string, meta: FinalizeMet
     }
   }
 
-  if (order.inventoryCommitted) return order;
+  if (order.inventoryCommitted) {
+    if (order.paymentStatus === 'paid') return finalizeShipment(String(order._id));
+    return order;
+  }
 
   const session = await mongoose.startSession();
   let committed = false;
@@ -130,7 +154,9 @@ export async function finalizePayment(razorpayOrderId: string, meta: FinalizeMet
     }
   }
 
-  return Order.findById(order._id);
+  const finalized = await Order.findById(order._id);
+  if (finalized?.paymentStatus === 'paid') return finalizeShipment(String(finalized._id));
+  return finalized;
 }
 
 export async function markOrderDelivered(orderId: string) {

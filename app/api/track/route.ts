@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { Order } from '@/lib/models';
 import { trackShipment, simulatedTracking } from '@/lib/delhivery';
 import { delhiveryConfigured, shippingSimulationEnabled } from '@/lib/config';
+import { normalizeTracking } from '@/lib/shipping';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
   }
   await db();
   const o = await Order.findOne({ number, trackingToken: token })
-    .select('number paymentStatus fulfillmentStatus shipment createdAt simulation notifications')
+    .select('number paymentStatus fulfillmentStatus shipment shipping shippingQuote createdAt simulation notifications')
     .lean() as any;
   if (!o) return Response.json({ error: 'Order not found' }, { status: 404 });
 
@@ -34,5 +35,22 @@ export async function GET(req: Request) {
     }
   }
 
-  return Response.json({ order: o, shipmentTracking, simulation: Boolean(o.simulation) });
+  let tracking: ReturnType<typeof normalizeTracking> | null = null;
+  if (shipmentTracking && !shipmentTracking.error) {
+    const raw = shipmentTracking.data || shipmentTracking;
+    tracking = normalizeTracking(raw);
+    if (!tracking.timeline.length && Array.isArray(shipmentTracking.timeline)) tracking.timeline = shipmentTracking.timeline;
+    if (!tracking.status && raw?.status) tracking.status = String(raw.status);
+    if (!tracking.description && raw?.status) tracking.description = String(raw.status);
+    if (!tracking.awb) tracking.awb = o.shipment.awb;
+  }
+
+  return Response.json({
+    order: o,
+    shipmentTracking,
+    tracking,
+    error: shipmentTracking?.error,
+    simulatedShipment: Boolean(o.shipment?.simulated),
+    simulation: Boolean(o.simulation),
+  });
 }

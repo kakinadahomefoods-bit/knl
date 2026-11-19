@@ -102,7 +102,10 @@ export async function POST(req: Request) {
       tags: Array.isArray(x.tags) ? x.tags : [],
       featured: !!x.featured,
       published: !!x.published,
-      weightGrams: Number(x.weightGrams) || 250,
+      weightGrams: nonNegative(x.weightGrams, 250),
+      lengthCm: nonNegative(x.lengthCm, 20),
+      breadthCm: nonNegative(x.breadthCm, 15),
+      heightCm: nonNegative(x.heightCm, 10),
       seoTitle: clean(x.seoTitle, 200),
       seoDescription: clean(x.seoDescription, 400),
     });

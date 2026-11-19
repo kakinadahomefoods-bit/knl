@@ -204,6 +204,17 @@ async function main() {
     const r = await api('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer: { ...customer, phone: '123' }, items: [{ id: productId, qty: 1 }] }) });
     expect(r.status === 400, 'expected 400, got ' + r.status);
   });
+  await check('Delivery quote rejects an invalid PIN', async () => {
+    const r = await api('/api/shipping/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '123', items: [{ id: productId, qty: 1 }] }) });
+    expect(r.status === 400, 'expected 400, got ' + r.status);
+  });
+  await check('Delivery quote returns a simulated charge before payment', async () => {
+    const r = await api('/api/shipping/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: customer.pin, items: [{ id: productId, qty: 2 }] }) });
+    expect(r.status === 200, 'status ' + r.status + ' ' + JSON.stringify(r.body));
+    expect(r.body.ok === true && r.body.quote, 'quote missing');
+    expect(r.body.quote.simulated === true, 'quote not marked simulated');
+    expect(typeof r.body.pricing.total === 'number', 'pricing missing');
+  });
   await check('Guest checkout creates a pending simulated order', async () => {
     const r = await api('/api/checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -244,14 +255,26 @@ async function main() {
     const r = await api('/api/admin/payments', {}, cookie);
     expect(r.body.payments.some((p) => p.number === checkout.number && p.simulation), 'no simulated payment record');
   });
-  await check('Admin creates a simulated shipment', async () => {
+  await check('Verified payment automatically creates a shipment', async () => {
+    const r = await api('/api/admin/orders/' + checkout.orderId, {}, cookie);
+    expect(r.status === 200, 'status ' + r.status + ' ' + JSON.stringify(r.body));
+    expect(r.body.order.shipment?.awb, 'no AWB was created after payment');
+    expect(r.body.order.shipment.simulated === true, 'shipment not marked simulated');
+    awb = r.body.order.shipment.awb;
+    return awb;
+  });
+  await check('Duplicate shipment creation is rejected', async () => {
     const r = await api('/api/shipping/create', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId: checkout.orderId }),
     }, cookie);
-    expect(r.status === 200, 'status ' + r.status + ' ' + JSON.stringify(r.body));
-    expect(r.body.simulated === true, 'not marked simulated');
-    awb = r.body.awb;
+    expect(r.status === 409, 'expected 409, got ' + r.status + ' ' + JSON.stringify(r.body));
+    expect(r.body.alreadyCreated === true, 'duplicate guard missing');
+  });
+  await check('Simulated shipping label is available to admin', async () => {
+    const r = await fetch(BASE + '/api/shipping/label?orderId=' + encodeURIComponent(checkout.orderId), { headers: { Cookie: cookie }, redirect: 'manual' });
+    expect(r.status === 200, 'status ' + r.status);
+    expect((r.headers.get('content-type') || '').includes('text/html'), 'unexpected label content type');
   });
   await check('Simulated shipment tracking works', async () => {
     const r = await api('/api/shipping/track?awb=' + encodeURIComponent(awb), {}, cookie);
