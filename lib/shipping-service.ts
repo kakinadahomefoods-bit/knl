@@ -11,7 +11,6 @@ import {
   delhiveryEnabled,
   delhiveryRateApiEnabled,
   flatShippingFee,
-  freeShippingThreshold,
   shippingRateFallbackEnabled,
   shippingSimulationEnabled,
   type FallbackShippingMethod,
@@ -91,7 +90,7 @@ export async function getShippingSettings(): Promise<StoreSettings> {
   };
   return {
     // Admin "Settings" values are authoritative; env vars are the fallback.
-    freeShippingThreshold: settingNumber(s.freeShippingThreshold, freeShippingThreshold()),
+    freeShippingThreshold: 1500,
     flatShippingFee: settingNumber(s.flatShippingFee, flatShippingFee()),
     pickupPin: normalizePin(process.env.DELHIVERY_PICKUP_PIN || s.pickupPin || '').slice(0, 6),
     pickupName: String(process.env.DELHIVERY_PICKUP_NAME || s.pickupName || '').trim().slice(0, 120),
@@ -363,10 +362,10 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
   }
 
   const shipping = applyFreeShipping(net, amount, settings.freeShippingThreshold);
-  const freeShippingApplied = shipping === 0 && settings.freeShippingThreshold > 0;
+  const freeShippingApplied = settings.freeShippingThreshold > 0 && net > settings.freeShippingThreshold;
   if (freeShippingApplied) {
     source = 'free_shipping';
-    note = `Free delivery applied on orders of ₹${settings.freeShippingThreshold} and above.`;
+    note = `Free delivery applied on orders above ₹${settings.freeShippingThreshold}.`;
   } else if (service.simulated) {
     source = 'simulation';
     note = 'Development simulation — no live carrier quote or charge.';

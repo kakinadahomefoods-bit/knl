@@ -86,9 +86,10 @@ test('configured PIN prefix multiplier overrides the local multiplier', () => {
   assert.equal(rate.amount, 140);
 });
 
-test('free shipping threshold zeroes the charge only at or above the threshold', () => {
-  assert.equal(applyFreeShipping(999, 80, 999), 0);
-  assert.equal(applyFreeShipping(998, 80, 999), 80);
+test('free shipping applies only above the threshold', () => {
+  assert.equal(applyFreeShipping(1500.01, 80, 1500), 0);
+  assert.equal(applyFreeShipping(1500, 80, 1500), 80);
+  assert.equal(applyFreeShipping(1499, 80, 1500), 80);
   assert.equal(applyFreeShipping(0, 80, 0), 80);
 });
 

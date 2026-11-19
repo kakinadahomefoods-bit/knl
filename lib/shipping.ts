@@ -229,7 +229,7 @@ export function calculateFallbackRate(
 /** Free-shipping threshold is applied after any rate source is resolved. */
 export function applyFreeShipping(netAmount: number, shippingAmount: number, threshold: number): number {
   const net = roundMoney(netAmount);
-  if (threshold > 0 && net >= threshold) return 0;
+  if (threshold > 0 && net > threshold) return 0;
   return roundMoney(shippingAmount);
 }
 

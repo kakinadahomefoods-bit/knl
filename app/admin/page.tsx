@@ -478,7 +478,7 @@ export default function Admin() {
         <h2>Store settings</h2>
         {[
           ['email', 'Contact email'], ['phone', 'Phone'], ['whatsapp', 'WhatsApp number'], ['address', 'Address'], ['fssaiLicense', 'FSSAI licence number'], ['about', 'About text'],
-          ['freeShippingThreshold', 'Free shipping above (₹)'], ['flatShippingFee', 'Flat shipping fee (₹)'],
+          ['flatShippingFee', 'Flat shipping fee (₹)'],
         ].map(([k, l]) => <label key={k}>{l}<textarea value={settings[k] ?? ''} onChange={(e) => setSettings((v) => ({ ...v, [k]: e.target.value }))} /></label>)}
         <p className="muted tiny">These two shipping values are used by both the storefront estimate and the server-side total. No shipping price is invented: the selected method below supplies the charge.</p>
         <h3>Shipping methods</h3>

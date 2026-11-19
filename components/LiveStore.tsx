@@ -772,13 +772,19 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           {([
             ['name', 'Full name', 'text'], ['phone', 'Phone number', 'tel'], ['email', 'Email address', 'email'],
             ['houseNo', 'House/flat number', 'text'], ['street', 'Street and area', 'text'],
-            ['landmark', 'Landmark (optional)', 'text'], ['city', 'City', 'text'], ['state', 'State', 'text'],
+            ['landmark', 'Landmark (optional)', 'text'], ['city', 'City', 'text'],
           ] as const).map(([k, label, type]) => (
             <label key={k}>{label}
-              <input required={k !== 'landmark'} type={type} autoComplete={{ name: 'name', phone: 'tel', email: 'email', city: 'address-level2', state: 'address-level1', houseNo: 'address-line1', street: 'address-line2', landmark: 'off' }[k]}
+              <input required={k !== 'landmark'} type={type} autoComplete={{ name: 'name', phone: 'tel', email: 'email', city: 'address-level2', houseNo: 'address-line1', street: 'address-line2', landmark: 'off' }[k]}
                 value={customer[k]} onChange={(e) => setCustomer((c) => ({ ...c, [k]: e.target.value }))} />
             </label>
           ))}
+          <label>State or union territory
+            <select required autoComplete="address-level1" value={customer.state} onChange={(e) => setCustomer((c) => ({ ...c, state: e.target.value }))}>
+              <option value="">Select state or union territory</option>
+              {['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'].map((state) => <option key={state} value={state}>{state}</option>)}
+            </select>
+          </label>
           <label>PIN code
             <div className="pin-check-row">
               <input required inputMode="numeric" autoComplete="postal-code" maxLength={6} placeholder="e.g. 518502"
