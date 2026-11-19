@@ -9,7 +9,7 @@ test.describe('Product management', () => {
     await page.fill('input[type=email]', email);
     await page.fill('input[type=password]', password);
     await page.click('button:has-text("Sign in")');
-    await expect(page.getByText('Dashboard')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
     await page.click('button:has-text("Products")');
     await page.click('button:has-text("+ Add Product")');

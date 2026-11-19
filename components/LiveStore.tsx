@@ -377,7 +377,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           el.style.setProperty('--ry', '0deg');
         }}>
         <button className="product-photo" onClick={() => openProduct(p)}>
-          {p.images?.[0] ? <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {p.images?.[0] ? <img src={p.images[0]} alt={p.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             : <span>{p.category === 'Brownies' ? '🍫' : p.category === 'Gift Boxes' ? '🎁' : '🍪'}</span>}
           {p.tags?.[0] && <small>{p.tags[0]}</small>}
         </button>
@@ -583,7 +583,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       {entries.length ? <div className="checkout-grid">
         <div className="cart-items">
           {entries.map(({ p, qty }) => <div className="cart-item" key={p._id}>
-            <div className="cart-emoji">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} style={{ width: 56, height: 56, objectFit: 'cover' }} /> : '🍪'}</div>
+            <div className="cart-emoji">{p.images?.[0] ? <img src={p.images[0]} alt={p.name} style={{ width: 56, height: 56, objectFit: 'contain' }} /> : '🍪'}</div>
             <div className="cart-description">
               <h3>{p.name}</h3><p>₹{p.price} each</p>
               <div className="quantity"><button onClick={() => changeQty(p._id, -1)}><Minus size={14} /></button><span>{qty}</span><button onClick={() => changeQty(p._id, 1)}><Plus size={14} /></button></div>

@@ -12,6 +12,6 @@ test.describe('Order management', () => {
     await page.click('button:has-text("Sign in")');
     await page.click('button:has-text("Orders")');
     // Orders table/list may be empty; page should render without error.
-    await expect(page.getByText('Orders')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   });
 });

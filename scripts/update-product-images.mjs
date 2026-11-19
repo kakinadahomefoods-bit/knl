@@ -15,6 +15,15 @@ const mappings = [
   ['double-chocolate-brownies-pack-of-6', '08_Double_Chocolate_Brownies'],
   ['all-mix-brownies', '09_All_Mix_Brownies'],
   ['dry-fruits-cookies-250g-pack-of-5', '10_Dry_Fruits_Cookies_250g'],
+  ['oreo-cookies-400g-pack-of-6', '11_Oreo_Cookies_400g'],
+  ['oreo-cookies-700g-pack-of-8', '12_Oreo_Cookies_700g'],
+  ['nutella-brownies-pack-of-6', '13_Nutella_Brownies'],
+  ['red-velvet-cookies-400g-pack-of-6', '14_Red_Velvet_Cookies_400g'],
+  ['red-velvet-cookies-700g-pack-of-8', '15_Red_Velvet_Cookies_700g'],
+  ['mini-double-chocolate-chip-cookies-250g', '16_Mini_Double_Chocolate_Chip_Cookies_250g'],
+  ['mini-red-velvet-cookies-250g', '17_Mini_Red_Velvet_Cookies_250g'],
+  ['mini-chocolate-chip-cookies', '18_Mini_Chocolate_Chip_Cookies'],
+  ['choco-chip-butter-cake-300g', '19_Choco_Chip_Butter_Cake_300g'],
 ];
 
 await mongoose.connect(uri);
