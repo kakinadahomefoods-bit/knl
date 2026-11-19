@@ -1,0 +1,11 @@
+import mongoose from 'mongoose';
+const uri = process.env.MONGODB_URI;
+if (!uri) throw new Error('Set MONGODB_URI first');
+await mongoose.connect(uri);
+const products = mongoose.connection.collection('products');
+const r1 = await products.updateOne({ slug: 'almond-choco-cookies' }, { $set: { images: [], updatedAt: new Date() } });
+console.log('almond updated:', r1.modifiedCount);
+const ref = mongoose.connection.collection('reference_catalogue');
+const r2 = await ref.updateMany({}, { $unset: { imageReferences: '', 'individualPage.imageReferences': '' } });
+console.log('reference images unset:', r2.modifiedCount);
+await mongoose.disconnect();
