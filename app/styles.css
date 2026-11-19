@@ -159,7 +159,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
  .admin-sidebar--open{display:flex}
  .admin-sidebar .admin-logo{font-size:24px;padding:10px 13px 24px}
  .admin-sidebar .admin-logo small{display:block}
- .admin-sidebar a{font-size:13px;justify-content:flex-start}
+ .admin-sidebar button,.admin-sidebar a{font-size:13px;justify-content:flex-start;color:#fff}
+ .admin-sidebar button.selected{color:#fff}
  .admin-main{padding:24px 16px}
  .admin-panel{min-width:0;max-width:100%;padding:16px;overflow:auto}
  .admin-line{align-items:flex-start}
