@@ -53,7 +53,7 @@ export default function HeroCarousel({ slides, eyebrow, description, onShop }: {
     onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }}
     onTouchEnd={(event) => { if (touchStart.current !== null) { const delta = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(delta) > 50) move(delta < 0 ? 1 : -1); } touchStart.current = null; }}
     onKeyDown={(event) => { if (event.key === 'ArrowRight') move(1); if (event.key === 'ArrowLeft') move(-1); }}>
-    {active.type === 'video' && active.video ? <video key={active.video} ref={video} className="hero-media" muted playsInline loop={!!active.loop}
+    {active.type === 'video' && active.video ? <video key={active.video} ref={video} className="hero-media" autoPlay muted playsInline loop={false}
       poster={active.poster || image} preload="metadata" onEnded={() => { if (!active.loop && !paused && slides.length > 1) setIndex((index + 1) % slides.length); }}>
       {active.mobileVideo && <source src={active.mobileVideo} media="(max-width: 600px)" />}
       <source src={active.video} />

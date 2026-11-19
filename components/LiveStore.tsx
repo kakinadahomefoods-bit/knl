@@ -441,7 +441,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           {categories.filter((c) => ['cookies', 'brownies', 'gift boxes'].includes(c.name.toLowerCase().trim())).map((cat) => {
             const c = cat.name;
             return <button className="category-card" key={c} onClick={() => shopCategory(c)}>
-              {cat?.image ? <img src={cat.image} alt={c} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 12 }} />
+              {cat?.image ? <img src={cat.image} alt={c} loading="lazy" decoding="async" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 12 }} />
                 : <span className="category-monogram" aria-hidden="true">{c.charAt(0)}</span>}
               <h3>{c}</h3><b>Shop Now →</b>
             </button>;
