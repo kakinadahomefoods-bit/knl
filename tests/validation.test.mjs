@@ -16,6 +16,8 @@ test('invalid phone, email and PIN are rejected', () => {
   assert.match(validateCustomer({ ...good, phone: '123' }), /mobile number/i);
   assert.match(validateCustomer({ ...good, email: 'not-an-email' }), /email/i);
   assert.match(validateCustomer({ ...good, pin: '123' }), /PIN/i);
+  assert.match(validateCustomer({ ...good, pin: '018502' }), /PIN/i);
+  assert.equal(validateCustomer({ ...good, pin: '999999' }), null);
 });
 
 test('house number and street are required and landmark is optional', () => {
