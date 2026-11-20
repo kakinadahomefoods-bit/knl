@@ -449,7 +449,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         }
         setCouponError('');
         setDeliveryQuote(null);
-        setQuoteError(x.error || 'Delivery is unavailable for this PIN');
+        setQuoteError(x.error || 'Unable to calculate delivery charges');
       } else {
         setDeliveryQuote({ ...x, key: requestKey });
         setCoupon(couponCode);
@@ -458,7 +458,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     } catch {
       if (seq !== quoteSeq.current) return;
       setDeliveryQuote(null);
-      setQuoteError('Unable to check delivery right now. Please try again.');
+      setQuoteError('Unable to calculate delivery charges right now. Please try again.');
     } finally {
       if (seq === quoteSeq.current) setQuoteBusy(false);
     }
@@ -472,7 +472,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
     setQuoteError('');
     idem.current = '';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    if (page !== 'checkout' || !/^[1-9]\d{5}$/.test(customer.pin) || !checkoutItems.length) return;
+    if (page !== 'checkout' || !/^[1-9]\d{5}$/.test(customer.pin) || !customer.houseNo.trim() || !customer.street.trim() || !customer.city.trim() || !customer.state.trim() || !checkoutItems.length) return;
     const timer = window.setTimeout(() => {
       void refreshQuote(customer.pin.trim(), checkoutItems, couponInput.trim().toUpperCase());
     }, 600);
@@ -791,11 +791,8 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
                 value={customer.pin} onChange={(e) => setCustomer((c) => ({ ...c, pin: e.target.value.replace(/\D/g, '').slice(0, 6) }))} />
             </div>
           </label>
-          {quoteBusy && <p className="muted tiny" role="status">Checking delivery and calculating charges…</p>}
+          {quoteBusy && <p className="muted tiny" role="status">Calculating delivery charges…</p>}
           {quoteError && <p className="muted tiny pin-error" role="alert">{quoteError}</p>}
-          {activeQuote?.quote && !quoteError && <p className="muted tiny pin-ok" role="status">
-            ✓ Delivery available to {activeQuote.quote.destinationPin} — {activeQuote.quote.amount === 0 ? 'free delivery' : '₹' + activeQuote.quote.amount + ' delivery'}.
-          </p>}
         </form>
         <aside className="summary">
           <h3>Order Summary</h3>
@@ -805,7 +802,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
           <div><span>Product subtotal</span><strong>₹{billSubtotal}</strong></div>
           {billDiscount > 0 && <div className="bill-discount"><span>Discount{coupon ? ` (${coupon})` : ''}</span><strong>− ₹{billDiscount}</strong></div>}
           <div><span>Taxes</span><strong>Included in MRP</strong></div>
-          <div><span>Delivery charges</span><strong>{quoteBusy ? 'Checking…' : billShipping === null ? 'Enter PIN code' : billShipping === 0 ? 'Free' : '₹' + billShipping}</strong></div>
+          <div><span>Delivery charges</span><strong>{quoteBusy ? 'Calculating…' : billShipping === null ? 'Enter delivery address' : billShipping === 0 ? 'Free' : '₹' + billShipping}</strong></div>
           <div className="summary-total"><span>{bill ? 'Total payable' : 'Total before delivery'}</span><strong>₹{billTotal}</strong></div>
           <div className="coupon-box">
             <label htmlFor="coupon-code">Have a coupon? <span className="muted tiny">(optional)</span></label>
@@ -817,7 +814,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
             {couponError && <p className="muted tiny pin-error" role="alert">{couponError}</p>}
           </div>
           <button className="primary-button full checkout-pay" form="checkout-form" type="submit" disabled={!canPay}>
-            {busy ? 'Preparing payment…' : quoteBusy ? 'Checking delivery…' : 'Pay Securely →'}
+            {busy ? 'Preparing payment…' : quoteBusy ? 'Calculating delivery…' : 'Pay Securely →'}
           </button>
           {!paymentAvailable && <p className="muted tiny">Payment is currently unavailable. Please try again later.</p>}
         </aside>

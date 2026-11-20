@@ -45,7 +45,8 @@ export const freeShippingThreshold = () => {
 };
 
 export const flatShippingFee = () => {
-  const n = Number(process.env.FLAT_SHIPPING_FEE ?? NaN);
+  const raw = process.env.FLAT_SHIPPING_FEE?.trim();
+  const n = raw ? Number(raw) : NaN;
   return Number.isFinite(n) && n >= 0 ? n : NaN;
 };
 

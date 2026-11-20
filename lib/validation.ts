@@ -30,7 +30,7 @@ export function validateCustomer(c: CustomerLike | null | undefined): string | n
   if (!name || name.length > 120) return 'Enter a valid name';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return 'Enter a valid email';
   if (!/^[0-9]{10}$/.test(phone)) return 'Enter a valid 10-digit mobile number';
-  if (!/^[0-9]{6}$/.test(pin)) return 'Enter a valid 6-digit PIN code';
+  if (!/^[1-9][0-9]{5}$/.test(pin)) return 'Enter a valid 6-digit PIN code';
   if (!address || address.length > 500) return 'Enter a valid house/flat number and street/area';
   // Structured checkout must provide both parts; legacy clients may send only `address`.
   if ((houseNo || street || landmark) && (!houseNo || !street)) return 'Enter a valid house/flat number and street/area';

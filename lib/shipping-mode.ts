@@ -53,6 +53,6 @@ export function resolveShippingMode(input: ResolveShippingInput): ResolvedShippi
     delhiveryLive: false,
     rateSource,
     errorCode: 'SHIPPING_NOT_CONFIGURED',
-    friendlyError: 'Delivery is currently unavailable for your area. Please contact the store for assistance.',
+    friendlyError: 'Delivery charges have not been configured yet. Please contact the store.',
   };
 }

@@ -170,12 +170,16 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.hero.hero-slider,.product-photo img,.product-photo span{transition:none}.multimedia-hero .hero-media{animation:none}}
 
 @media(max-width:700px){
- .hero.hero-slider.multimedia-hero.multimedia-hero--landscape{height:auto;aspect-ratio:848/478}
  .multimedia-hero .hero-media,.multimedia-hero picture img{object-position:center}
  .hero.hero-slider .hero-overlay{top:auto;bottom:68px;left:16px;right:16px;transform:none;padding:16px 18px}
  .hero.hero-slider .hero-overlay h1{font-size:clamp(28px,8vw,42px)}
  .hero.hero-slider .hero-overlay p{font-size:14px;line-height:1.45}
  .category-card-media{aspect-ratio:16/10}
+}
+
+@media(max-width:767px){
+ .hero.hero-slider.multimedia-hero{height:auto;background:#24140e}
+ .multimedia-hero video.hero-media{position:static;width:100%;height:auto;max-width:100%;object-fit:contain;object-position:center;transform:none}
 }
 
 /* Delivery PIN checker and shipment tracking */

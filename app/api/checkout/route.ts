@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Single authoritative quote: PIN serviceability, packed weight/dimensions and
+    // Single authoritative quote: PIN format, packed weight/dimensions and
     // the configured shipping rule. The browser estimate uses this same code path.
     const quoted = await quoteForCart({
       pin: String(body.customer.pin).trim(),

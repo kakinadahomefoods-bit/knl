@@ -11,7 +11,6 @@ import {
   delhiveryEnabled,
   delhiveryRateApiEnabled,
   flatShippingFee,
-  shippingRateFallbackEnabled,
   shippingSimulationEnabled,
   type FallbackShippingMethod,
 } from './config';
@@ -27,11 +26,9 @@ import {
 export type { ShippingMode, ResolvedShipping, CheckoutErrorCode } from './shipping-mode';
 import {
   applyFreeShipping,
-  calculateFallbackRate,
   computeParcel,
   isValidPin,
   normalizePin,
-  parseRateCard,
   roundMoney,
   type PackageItem,
   type PackedParcel,
@@ -85,6 +82,7 @@ export async function getShippingSettings(): Promise<StoreSettings> {
   const doc = await Content.findOne({ key: 'settings' }).lean() as any;
   const s = doc?.value && typeof doc.value === 'object' ? doc.value : {};
   const settingNumber = (value: unknown, fallback: number) => {
+    if (value === undefined || value === null || value === '') return fallback;
     const n = Number(value);
     return Number.isFinite(n) && n >= 0 ? n : fallback;
   };
@@ -197,13 +195,12 @@ export type ShippingQuote = {
   /** Set on the order so manual shipments never trigger carrier AWB creation. */
   method: ShippingMode;
   simulated: boolean;
-  serviceable: boolean;
+  serviceable?: boolean;
   pickupPin: string;
   destinationPin: string;
   parcel: PackedParcel;
   freeShippingApplied: boolean;
   note: string;
-  serviceability: ServiceabilityResult;
 };
 
 export type QuoteResult = {
@@ -234,7 +231,6 @@ type QuoteInput = {
 /** Single authoritative quote path used by both the checkout and the quote API. */
 export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
   const settings = await getShippingSettings();
-  const resolved = resolveShippingMode(settings);
   const destinationPin = normalizePin(input.pin);
   if (!isValidPin(destinationPin)) {
     return { ok: false, status: 400, error: 'Enter a valid six-digit PIN code', errorCode: 'PIN_INVALID', serviceable: false };
@@ -299,63 +295,15 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     settings.packageDefaults
   );
 
-  const service = await checkPinServiceability(destinationPin, settings);
-  if (!service.serviceable) {
-    return {
-      ok: false,
-      status: service.errorCode === 'PIN_INVALID' || service.errorCode === 'SHIPPING_UNAVAILABLE' ? 400 : 503,
-      error: service.error || 'Delivery is currently unavailable. Please contact the store.',
-      errorCode: service.errorCode,
-      serviceable: false,
-    };
-  }
-
-  let amount = settings.flatShippingFee;
-  let baseAmount = settings.flatShippingFee;
+  const amount = settings.flatShippingFee;
+  const baseAmount = settings.flatShippingFee;
   let source: ShippingQuote['source'] = 'flat_fee';
-  let note = service.note || 'Flat delivery charge. Free above the store threshold.';
-
-  if (resolved.mode === 'simulation') {
-    // Development-only. Never invent a real delivery price: the simulated order
-    // carries zero shipping and is clearly labelled as a simulation everywhere.
-    amount = 0;
-    baseAmount = 0;
-    source = 'simulation';
-    note = 'Development simulation — no live carrier quote or charge.';
-  } else if (resolved.mode === 'delhivery' && delhiveryRateApiEnabled()) {
-    // The live freight API is account-specific and documented only inside the client
-    // developer portal. Never guess a URL: fail explicitly until the account details
-    // (endpoint + request/response schema) are supplied and wired.
-    return {
-      ok: false,
-      status: 503,
-      serviceable: true,
-      errorCode: 'RATE_API_NOT_CONFIGURED',
-      error: 'Live carrier rate calculation is not configured for this account. Contact the store owner.',
-    };
-  } else if (settings.fallbackShippingMethod === 'none') {
-    return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
-  } else if (resolved.rateSource === 'rate_card' && (shippingRateFallbackEnabled() || resolved.mode === 'manual')) {
-    if (!process.env.SHIPPING_RATE_CARD?.trim()) return { ok: false, status: 503, serviceable: true, error: 'Delivery rate card is not configured.' };
-    const parsed = parseRateCard(process.env.SHIPPING_RATE_CARD);
-    if (!parsed.ok || !isValidPin(settings.pickupPin)) return { ok: false, status: 503, serviceable: true, error: 'Unable to calculate delivery right now. Please try again.' };
-    const rate = calculateFallbackRate(parsed.card, {
-      pickupPin: settings.pickupPin,
-      destinationPin,
-      billableWeightGrams: parcel.billableWeightGrams,
-    });
-    amount = rate.amount;
-    baseAmount = rate.amount;
-    source = 'fallback_rate_card';
-    note = 'Delivery charge based on packed weight and PIN. Arranged by our team, not a carrier quote.';
-  } else if (resolved.rateSource === 'rate_card') {
-    return { ok: false, status: 503, serviceable: true, error: 'Delivery rate card is not enabled.' };
-  } else if (!Number.isFinite(amount)) {
+  let note = 'Delivery charge configured by the store.';
+  if (!Number.isFinite(amount) || amount < 0) {
     // No configured fee means no invented charge: block until the admin sets one.
     return {
       ok: false,
       status: 503,
-      serviceable: true,
       errorCode: 'SHIPPING_NOT_CONFIGURED',
       error: 'Delivery charges have not been configured yet. Please contact the store.',
     };
@@ -366,9 +314,6 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
   if (freeShippingApplied) {
     source = 'free_shipping';
     note = `Free delivery applied on orders above ₹${settings.freeShippingThreshold}.`;
-  } else if (service.simulated) {
-    source = 'simulation';
-    note = 'Development simulation — no live carrier quote or charge.';
   }
 
   const quote: ShippingQuote = {
@@ -376,21 +321,18 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     baseAmount: roundMoney(baseAmount),
     currency: 'INR',
     source,
-    method: service.mode,
-    simulated: service.simulated,
-    serviceable: true,
+    method: 'manual',
+    simulated: false,
     pickupPin: settings.pickupPin,
     destinationPin,
     parcel,
     freeShippingApplied,
     note,
-    serviceability: service,
   };
 
   const result: QuoteResult = {
     ok: true,
     status: 200,
-    serviceable: true,
     quote,
   };
   if (!input.pinOnly) {
