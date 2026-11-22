@@ -397,7 +397,7 @@ export default function Admin() {
       {tab === 'Shorts' || tab === 'Reels' ? <>
         <div className="admin-panel">{shorts.map((s: any, i: number) => <div className="admin-line" key={i}>
           <span>{s?.title || s?.url || s} {s?.url ? <small className="stat-small">{s.url}</small> : null}</span>
-          <button onClick={() => setShorts((prev) => prev.filter((_, idx) => idx !== i))}>Remove</button>
+          <button onClick={async () => { const updated = shorts.filter((_, idx) => idx !== i); setShorts(updated); try { await api('/api/content', 'PUT', { key: 'shorts', value: updated }); await api('/api/content', 'PUT', { key: 'reels', value: updated }); report('Short removed', false); } catch (e: any) { report(e.message, true); } }}>Remove</button>
         </div>)}</div>
         <form className="checkout-form" onSubmit={async (e) => {
           e.preventDefault();
