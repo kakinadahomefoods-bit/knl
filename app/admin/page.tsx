@@ -261,13 +261,41 @@ export default function Admin() {
         <div className="stats">
           {[
             ['Total Revenue', '₹' + (metrics.revenue || 0)],
-            ['Orders', metrics.orders || 0],
+            ['Paid Orders', metrics.paidOrders || 0],
+            ['Total Orders', metrics.orders || 0],
+            ['Average Order Value', '₹' + Number(metrics.averageOrderValue || 0).toFixed(2)],
+            ['Items Sold', metrics.itemsSold || 0],
+            ['Pending Payments', metrics.pendingOrders || 0],
+            ['Failed Payments', metrics.failedOrders || 0],
+            ['Cancelled Orders', metrics.cancelledOrders || 0],
+            ['Refunded Orders', metrics.refundedOrders || 0],
+            ['Partial Refunds', metrics.partiallyRefundedOrders || 0],
+            ['Awaiting Shipment', metrics.unfulfilledPaid || 0],
             ['Products', metrics.products || 0],
-            ['Awaiting Shipment', metrics.pending || 0],
           ].map(([a, b]) => <div className="stat" key={String(a)}><span>{a}</span><strong>{b}</strong></div>)}
         </div>
+        <div className="admin-panel">
+          <div className="admin-line"><strong>Revenue breakdown</strong></div>
+          <div className="admin-line"><span>Paid revenue</span><strong>₹{metrics.revenue || 0}</strong></div>
+          <div className="admin-line"><span>Shipping collected</span><strong>₹{metrics.shippingRevenue || 0}</strong></div>
+          <div className="admin-line"><span>Discounts given</span><strong>₹{metrics.discountTotal || 0}</strong></div>
+          <div className="admin-line"><span>Product subtotal</span><strong>₹{metrics.subtotal || 0}</strong></div>
+        </div>
+        <h2 className="admin-section-title">Payment status</h2>
+        <div className="admin-panel">{(metrics.paymentStatus || []).map((r: any) => <div className="admin-line" key={r.status}><span>{r.status}</span><strong>{r.count} orders · ₹{r.total}</strong></div>)}</div>
+        <h2 className="admin-section-title">Fulfillment status</h2>
+        <div className="admin-panel">{(metrics.fulfillmentStatus || []).map((r: any) => <div className="admin-line" key={r.status}><span>{r.status}</span><strong>{r.count} orders</strong></div>)}</div>
+        <h2 className="admin-section-title">Shipping methods</h2>
+        <div className="admin-panel">{(metrics.shippingMethods || []).map((r: any) => <div className="admin-line" key={r.method}><span>{r.method}</span><strong>{r.count} orders · ₹{r.shipping}</strong></div>)}</div>
+        <h2 className="admin-section-title">Top selling products</h2>
+        <div className="admin-panel">{(metrics.topProducts || []).map((r: any, i: number) => <div className="admin-line" key={i}><span>{r.name}</span><strong>{r.qty} sold · ₹{r.revenue}</strong></div>)}</div>
+        <h2 className="admin-section-title">Orders (last 14 days)</h2>
+        <div className="admin-panel">{(metrics.daily || []).map((r: any) => <div className="admin-line" key={r.date}><span>{r.date}</span><strong>{r.orders} orders · ₹{r.revenue}</strong></div>)}</div>
+        <h2 className="admin-section-title">Recent orders</h2>
+        <div className="admin-panel">{(metrics.recentOrders || []).map((o: any, i: number) => <div className="admin-line" key={i}><span>{o.number} — {o.customer}{o.city ? ' (' + o.city + ')' : ''}{o.simulation ? ' (SIM)' : ''}</span><strong>₹{o.total} — {o.paymentStatus} / {o.fulfillmentStatus}</strong></div>)}</div>
         <p className="muted">Use the sidebar to manage catalogues, orders, payments and website content. All records shown here come from MongoDB.</p>
-      </>}
+      </>
+}
 
       {tab === 'Products' && <>
         <button className="primary-button" onClick={() => { setEdit({ name: '', category: 'Cookies', price: 0, stock: 0, published: true }); setFile(null); }}>+ Add Product</button>
