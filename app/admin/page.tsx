@@ -8,12 +8,13 @@ import './login.css';
 type Any = Record<string, any>;
 const SECTIONS = [
   'Dashboard', 'Products', 'Categories', 'Inventory', 'Orders', 'Payments',
-  'Shipments', 'Coupons', 'Banners', 'Sections', 'Our Story', 'Policies', 'SEO', 'Settings', 'Media',
+  'Shipments', 'Coupons', 'Banners', 'Shorts', 'Reels', 'Sections', 'Our Story', 'Policies', 'SEO', 'Settings', 'Media',
 ];
 
 const MEDIA_FOLDERS = [
   ['cruvita/products', 'Product images'],
   ['cruvita/banners', 'Homepage banners'],
+  ['cruvita/shorts', 'Homepage shorts'],
   ['cruvita/categories', 'Category images'],
   ['cruvita/logo', 'Website logo'],
 ];
@@ -33,10 +34,12 @@ export default function Admin() {
   const [settings, setSettings] = useState<Any>({});
   const [shippingStatus, setShippingStatus] = useState<Any | null>(null);
   const [homepage, setHomepage] = useState<Any>({});
+  const [shorts, setShorts] = useState<Any[]>([]);
+  const [shortDraft, setShortDraft] = useState<Any>({ url: '', title: '' });
   const [story, setStory] = useState<Any>(storyDefaults);
   const [file, setFile] = useState<File | null>(null);
   const [folder, setFolder] = useState('cruvita/products');
-  const [uploadTarget, setUploadTarget] = useState<'edit' | 'homepage' | 'settings'>('edit');
+  const [uploadTarget, setUploadTarget] = useState<'edit' | 'homepage' | 'settings' | 'short'>('edit');
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<Any | null>(null);
 
@@ -80,6 +83,11 @@ export default function Admin() {
         const content = (await api('/api/content')).content || [];
         setHomepage(content.find((c: Any) => c.key === 'homepage')?.value || {});
       }
+      if (section === 'Shorts' || section === 'Reels') {
+        const content = (await api('/api/content')).content || [];
+        const value = content.find((c: any) => c.key === 'shorts')?.value ?? content.find((c: any) => c.key === 'reels')?.value;
+        setShorts(Array.isArray(value) ? value : (Array.isArray(value?.items) ? value.items : []));
+      }
       if (section === 'Sections') {
         const content = (await api('/api/content')).content || [];
         const sections = content.find((c: Any) => c.key === 'custom-sections')?.value;
@@ -115,7 +123,7 @@ export default function Admin() {
 
   function selectTab(s: string) { setTab(s); setEdit({}); setDetail(null); setMsg(''); setMenuOpen(false); load(s); }
 
-  async function upload(targetFolder = folder, target: 'edit' | 'homepage' | 'settings' = uploadTarget) {
+  async function upload(targetFolder = folder, target: 'edit' | 'homepage' | 'settings' | 'short' = uploadTarget) {
     if (!file) return report('Choose an image first', true);
     setBusy(true);
     try {
@@ -129,6 +137,8 @@ export default function Admin() {
         setHomepage((v: Any) => ({ ...v, image: x.url }));
       } else if (target === 'settings') {
         setSettings((s) => ({ ...s, logo: x.url }));
+      } else if (target === 'short') {
+        setShortDraft((v: Any) => ({ ...v, url: x.url }));
       } else {
         setEdit((p: Any) => ({
           ...p,
@@ -197,9 +207,9 @@ export default function Admin() {
       : <input value={edit[key] ?? ''} onChange={(e) => setEdit((v) => ({ ...v, [key]: e.target.value }))} />}</label>
   );
 
-  const uploader = (targetFolder = folder, target: 'edit' | 'homepage' | 'settings' = 'edit') => <>
+  const uploader = (targetFolder = folder, target: 'edit' | 'homepage' | 'settings' | 'short' = 'edit') => <>
     <label className="muted tiny">{MEDIA_FOLDERS.find(([v]) => v === targetFolder)?.[1] || 'Image'} — choose an image from your device (max 5 MB)</label>
-    <input type="file" accept={targetFolder === 'cruvita/banners' && target === 'edit' && tab === 'Banners' ? 'image/*,video/mp4,video/webm' : 'image/*'} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+    <input type="file" accept={target === 'short' ? 'video/*' : (targetFolder === 'cruvita/banners' && target === 'edit' && tab === 'Banners' ? 'image/*,video/mp4,video/webm' : 'image/*')} onChange={(e) => setFile(e.target.files?.[0] || null)} />
     <button type="button" disabled={busy || !file} onClick={() => { setFolder(targetFolder); setUploadTarget(target); upload(targetFolder, target); }}>
       {busy ? 'Uploading…' : 'Upload image'}
     </button>
@@ -384,6 +394,32 @@ export default function Admin() {
         </form>
       </>}
 
+      {tab === 'Shorts' || tab === 'Reels' ? <>
+        <div className="admin-panel">{shorts.map((s: any, i: number) => <div className="admin-line" key={i}>
+          <span>{s?.title || s?.url || s} {s?.url ? <small className="stat-small">{s.url}</small> : null}</span>
+          <button onClick={() => setShorts((prev) => prev.filter((_, idx) => idx !== i))}>Remove</button>
+        </div>)}</div>
+        <form className="checkout-form" onSubmit={async (e) => {
+          e.preventDefault();
+          try {
+            const item = { url: shortDraft.url, title: shortDraft.title };
+            const updated = [...shorts, item];
+            await api('/api/content', 'PUT', { key: 'shorts', value: updated });
+            await api('/api/content', 'PUT', { key: 'reels', value: updated });
+            setShorts(updated); setShortDraft({ url: '', title: '' }); report('Short saved', false);
+          } catch (err: any) { report(err.message, true); }
+        }}>
+          <h2>Add short video</h2>
+          <label>Video URL<input required value={shortDraft.url || ''} onChange={(e) => setShortDraft((v: any) => ({ ...v, url: e.target.value }))} /></label>
+          <label>Title<input value={shortDraft.title || ''} onChange={(e) => setShortDraft((v: any) => ({ ...v, title: e.target.value }))} /></label>
+          {uploader('cruvita/shorts', 'short')}
+          <button className="primary-button" type="submit">Add Short</button>
+        </form>
+        <button className="outline-button" onClick={async () => {
+          try { await api('/api/content', 'PUT', { key: 'shorts', value: shorts }); await api('/api/content', 'PUT', { key: 'reels', value: shorts }); report('Shorts saved', false); }
+          catch (e: any) { report(e.message, true); }
+        }}>Save list</button>
+      </> : null}
       {tab === 'Sections' && <>
         <p className="muted">Create custom homepage sections with text and an optional image. Sections appear in the order shown below.</p>
         <button className="primary-button" onClick={() => { setEdit({ id: crypto.randomUUID(), title: '', enabled: true, sortOrder: items.length }); setFile(null); }}>+ Add Section</button>

@@ -59,6 +59,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
   const [settings, setSettings] = useState<any>({});
   const [homepage, setHomepage] = useState<any>({});
   const [banners, setBanners] = useState<any[]>([]);
+  const [shorts, setShorts] = useState<any[]>([]);
   const [heroSlidesState, setHeroSlidesState] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalogueError, setCatalogueError] = useState('');
@@ -152,6 +153,11 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         const bannerSlides = list.filter((c) => String(c.key).startsWith('banner:')).map((c) => c.value).filter(Boolean);
         setHomepage(homepageValue);
         setBanners(bannerSlides);
+        const shortsValue = list.find((c) => c.key === 'shorts')?.value
+          ?? list.find((c) => c.key === 'reels')?.value
+          ?? homepageValue.shorts ?? homepageValue.reels;
+        setShorts(Array.isArray(shortsValue) ? shortsValue
+          : (Array.isArray(shortsValue?.items) ? shortsValue.items : []));
         const configuredSlides = Array.isArray(homepageValue.slides) && homepageValue.slides.length
           ? homepageValue.slides
           : bannerSlides.filter((b) => b?.enabled !== false).sort((a, b) => (Number(a?.sortOrder) || 0) - (Number(b?.sortOrder) || 0));
@@ -653,9 +659,12 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
       </section>
 
       <section className="section">
-        <div className="section-heading section-heading-centered"><div className="eyebrow">REELS</div><h2>Sweet <i>Moments</i></h2></div>
+        <div className="section-heading section-heading-centered"><div className="eyebrow">SHORTS & REELS</div><h2>Sweet <i>Moments</i></h2></div>
         <div className="reels-row">
-          {[1, 2, 3, 4].map((i) => <div className="reel-placeholder" key={i}>▶</div>)}
+          {shorts.length ? shorts.map((s: any, i: number) => {
+            const url = typeof s === 'string' ? s : (s?.url || s?.video || s?.src);
+            return url ? <video key={i} className="reel-video" src={url} muted loop playsInline preload="metadata" /> : <div className="reel-placeholder" key={i}>▶</div>;
+          }) : [1, 2, 3, 4].map((i) => <div className="reel-placeholder" key={i}>▶</div>)}
         </div>
       </section>
 
