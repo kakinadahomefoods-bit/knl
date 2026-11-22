@@ -7,6 +7,7 @@ import StoreBenefits from '@/components/StoreBenefits';
 import { BUSINESS_DEFAULTS } from '@/lib/business';
 import HeroCarousel from '@/components/HeroCarousel';
 import CatalogueImage from '@/components/CatalogueImage';
+import ShortVideo from '@/components/ShortVideo';
 import { validateCustomer } from '@/lib/validation';
 import {
   ShoppingBag, Search, Heart, Menu, X, Minus, Plus, Trash2, ArrowRight, Truck,
@@ -663,7 +664,7 @@ export default function LiveStore({ initialPage = 'home', initialSlug, initialPo
         <div className="reels-row">
           {shorts.length ? shorts.map((s: any, i: number) => {
             const url = typeof s === 'string' ? s : (s?.url || s?.video || s?.src);
-            return url ? <video key={i} className="reel-video" src={url} muted loop playsInline preload="metadata" /> : <div className="reel-placeholder" key={i}>▶</div>;
+            return url ? <ShortVideo key={`${url}-${i}`} url={url} title={s?.title || `Sweet moment ${i + 1}`} /> : <div className="reel-placeholder" key={i}>▶</div>;
           }) : [1, 2, 3, 4].map((i) => <div className="reel-placeholder" key={i}>▶</div>)}
         </div>
       </section>

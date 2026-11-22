@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { storyDefaults } from '@/lib/story';
+import { validShortUrl } from '@/lib/short-video';
 import './login.css';
 
 type Any = Record<string, any>;
@@ -36,6 +37,7 @@ export default function Admin() {
   const [homepage, setHomepage] = useState<Any>({});
   const [shorts, setShorts] = useState<Any[]>([]);
   const [shortDraft, setShortDraft] = useState<Any>({ url: '', title: '' });
+  const [shortEditIndex, setShortEditIndex] = useState<number | null>(null);
   const [story, setStory] = useState<Any>(storyDefaults);
   const [file, setFile] = useState<File | null>(null);
   const [folder, setFolder] = useState('cruvita/products');
@@ -124,7 +126,24 @@ export default function Admin() {
   function selectTab(s: string) { setTab(s); setEdit({}); setDetail(null); setMsg(''); setMenuOpen(false); load(s); }
 
   async function upload(targetFolder = folder, target: 'edit' | 'homepage' | 'settings' | 'short' = uploadTarget) {
-    if (!file) return report('Choose an image first', true);
+    if (!file) return report(target === 'short' ? 'Choose a video first' : 'Choose an image first', true);
+    if (target === 'short') {
+      if (!['video/mp4', 'video/webm'].includes(file.type) || file.size > 20 * 1024 * 1024 || !file.size) return report('Choose an MP4 or WebM video up to 20 MB.', true);
+      setBusy(true);
+      try {
+        const signed = await api('/api/admin/short-upload', 'POST');
+        const form = new FormData();
+        form.append('file', file);
+        for (const key of ['apiKey', 'timestamp', 'folder', 'signature']) form.append(key === 'apiKey' ? 'api_key' : key, String(signed[key]));
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/video/upload`, { method: 'POST', body: form });
+        const result = await response.json();
+        if (!response.ok || !result.secure_url || result.resource_type !== 'video') throw new Error(result.error?.message || 'Video upload failed');
+        setShortDraft((v: Any) => ({ ...v, url: result.secure_url }));
+        setFile(null);
+        report('Video uploaded. Select Add Short to publish it.');
+      } catch (e: any) { report(e.message || 'Video upload failed', true); } finally { setBusy(false); }
+      return;
+    }
     setBusy(true);
     try {
       const form = new FormData();
@@ -137,8 +156,6 @@ export default function Admin() {
         setHomepage((v: Any) => ({ ...v, image: x.url }));
       } else if (target === 'settings') {
         setSettings((s) => ({ ...s, logo: x.url }));
-      } else if (target === 'short') {
-        setShortDraft((v: Any) => ({ ...v, url: x.url }));
       } else {
         setEdit((p: Any) => ({
           ...p,
@@ -208,10 +225,10 @@ export default function Admin() {
   );
 
   const uploader = (targetFolder = folder, target: 'edit' | 'homepage' | 'settings' | 'short' = 'edit') => <>
-    <label className="muted tiny">{MEDIA_FOLDERS.find(([v]) => v === targetFolder)?.[1] || 'Image'} — choose an image from your device (max 5 MB)</label>
-    <input type="file" accept={target === 'short' ? 'video/*' : (targetFolder === 'cruvita/banners' && target === 'edit' && tab === 'Banners' ? 'image/*,video/mp4,video/webm' : 'image/*')} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+    <label className="muted tiny">{target === 'short' ? 'Choose an MP4 or WebM video (max 20 MB)' : `${MEDIA_FOLDERS.find(([v]) => v === targetFolder)?.[1] || 'Image'} — choose an image (max 4 MB)`}</label>
+    <input type="file" accept={target === 'short' ? 'video/mp4,video/webm' : (targetFolder === 'cruvita/banners' && target === 'edit' && tab === 'Banners' ? 'image/*,video/mp4,video/webm' : 'image/*')} onChange={(e) => setFile(e.target.files?.[0] || null)} />
     <button type="button" disabled={busy || !file} onClick={() => { setFolder(targetFolder); setUploadTarget(target); upload(targetFolder, target); }}>
-      {busy ? 'Uploading…' : 'Upload image'}
+      {busy ? 'Uploading…' : target === 'short' ? 'Upload video' : 'Upload image'}
     </button>
   </>;
 
@@ -425,26 +442,29 @@ export default function Admin() {
       {tab === 'Shorts' || tab === 'Reels' ? <>
         <div className="admin-panel">{shorts.map((s: any, i: number) => <div className="admin-line" key={i}>
           <span>{s?.title || s?.url || s} {s?.url ? <small className="stat-small">{s.url}</small> : null}</span>
-          <button onClick={async () => { const updated = shorts.filter((_, idx) => idx !== i); setShorts(updated); try { await api('/api/content', 'PUT', { key: 'shorts', value: updated }); await api('/api/content', 'PUT', { key: 'reels', value: updated }); report('Short removed', false); } catch (e: any) { report(e.message, true); } }}>Remove</button>
+          <button type="button" onClick={() => { setShortDraft(typeof s === 'string' ? { url: s, title: '' } : { ...s, url: s.url || s.video || s.src || '' }); setShortEditIndex(i); }}>Edit</button>
+          <button type="button" disabled={busy} onClick={async () => { const updated = shorts.filter((_, idx) => idx !== i); try { await api('/api/content', 'PUT', { key: 'shorts', value: updated }); setShorts(updated); setShortEditIndex(null); setShortDraft({ url: '', title: '' }); report('Short removed', false); } catch (e: any) { report(e.message, true); } }}>Remove</button>
         </div>)}</div>
         <form className="checkout-form" onSubmit={async (e) => {
           e.preventDefault();
+          if (busy) return;
+          if (!validShortUrl(String(shortDraft.url || '').trim())) return report('Enter an HTTPS video URL or a valid YouTube URL.', true);
           try {
-            const item = { url: shortDraft.url, title: shortDraft.title };
-            const updated = [...shorts, item];
+            const item = { ...shortDraft, url: shortDraft.url.trim(), title: shortDraft.title || '' };
+            const updated = shortEditIndex === null ? [...shorts, item] : shorts.map((s, i) => i === shortEditIndex ? item : s);
             await api('/api/content', 'PUT', { key: 'shorts', value: updated });
-            await api('/api/content', 'PUT', { key: 'reels', value: updated });
-            setShorts(updated); setShortDraft({ url: '', title: '' }); report('Short saved', false);
+            setShorts(updated); setShortDraft({ url: '', title: '' }); setShortEditIndex(null); report('Short saved', false);
           } catch (err: any) { report(err.message, true); }
         }}>
-          <h2>Add short video</h2>
+          <h2>{shortEditIndex === null ? 'Add short video' : 'Edit short video'}</h2>
           <label>Video URL<input required value={shortDraft.url || ''} onChange={(e) => setShortDraft((v: any) => ({ ...v, url: e.target.value }))} /></label>
           <label>Title<input value={shortDraft.title || ''} onChange={(e) => setShortDraft((v: any) => ({ ...v, title: e.target.value }))} /></label>
           {uploader('cruvita/shorts', 'short')}
-          <button className="primary-button" type="submit">Add Short</button>
+          <button className="primary-button" type="submit" disabled={busy}>{shortEditIndex === null ? 'Add Short' : 'Save Short'}</button>
+          {shortEditIndex !== null && <button type="button" onClick={() => { setShortEditIndex(null); setShortDraft({ url: '', title: '' }); }}>Cancel</button>}
         </form>
         <button className="outline-button" onClick={async () => {
-          try { await api('/api/content', 'PUT', { key: 'shorts', value: shorts }); await api('/api/content', 'PUT', { key: 'reels', value: shorts }); report('Shorts saved', false); }
+          try { await api('/api/content', 'PUT', { key: 'shorts', value: shorts }); report('Shorts saved', false); }
           catch (e: any) { report(e.message, true); }
         }}>Save list</button>
       </> : null}
