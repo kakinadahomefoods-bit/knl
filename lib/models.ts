@@ -77,6 +77,19 @@ const trackingEvent = new Schema(
   { _id: true }
 );
 
+const orderStatusHistory = new Schema(
+  {
+    from: { type: String, trim: true },
+    to: { type: String, trim: true, required: true },
+    at: { type: Date, default: Date.now },
+    by: { type: String, trim: true },
+    notes: { type: String, trim: true },
+    trackingNumber: { type: String, trim: true },
+    courier: { type: String, trim: true },
+  },
+  { _id: true }
+);
+
 const notification = new Schema(
   {
     type: { type: String, required: true },
@@ -181,6 +194,7 @@ const order = new Schema(
     refundedAt: Date,
     restocked: { type: Boolean, default: false },
     notes: String,
+    history: { type: [orderStatusHistory], default: [] },
   },
   opt
 );

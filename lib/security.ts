@@ -67,5 +67,17 @@ export async function revokeAdminSession() {
   await Admin.db.collection('admin_sessions').deleteOne({ sid: obj.sid, adminId: obj.id });
 }
 
+export async function getAdminSession() {
+  const cookie = (await cookies()).get('cruvita_admin')?.value;
+  const obj = readSession(cookie);
+  if (!obj) return null;
+  await db();
+  const user = await Admin.findById(obj.id).select('email role passwordHash').lean() as { email?: string; role?: string; passwordHash?: string } | null;
+  if (!user?.passwordHash || obj.version !== sessionVersion(user.passwordHash)) return null;
+  const session = await Admin.db.collection('admin_sessions').findOne({ sid: obj.sid, adminId: obj.id, expiresAt: { $gt: new Date() } });
+  if (!session) return null;
+  return { id: String(obj.id), email: user.email || '', role: user.role || 'owner' };
+}
+
 export function adminDenied() { return Response.json({ error: 'Unauthorized' }, { status: 401 }); }
 export function clean(s: unknown, max = 200) { return typeof s === 'string' ? s.trim().slice(0, max) : ''; }

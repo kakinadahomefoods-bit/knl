@@ -43,10 +43,8 @@ export default function Admin() {
   const [folder, setFolder] = useState('cruvita/products');
   const [uploadTarget, setUploadTarget] = useState<'edit' | 'homepage' | 'settings' | 'short'>('edit');
   const [busy, setBusy] = useState(false);
-  const [detail, setDetail] = useState<Any | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [orderFilter, setOrderFilter] = useState('All');
-  const [orderSearch, setOrderSearch] = useState('');
+  const [orderFilter, setOrderFilter] = useState(() => (typeof window !== 'undefined' ? sessionStorage.getItem('adminOrderFilter') || 'All' : 'All'));
+  const [orderSearch, setOrderSearch] = useState(() => (typeof window !== 'undefined' ? sessionStorage.getItem('adminOrderSearch') || '' : ''));
 
   useEffect(() => {
     function closeMenu(event: KeyboardEvent) { if (event.key === 'Escape') setMenuOpen(false); }
@@ -118,6 +116,13 @@ export default function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('adminOrderFilter', orderFilter);
+      sessionStorage.setItem('adminOrderSearch', orderSearch);
+    }
+  }, [orderFilter, orderSearch]);
+
   async function login(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -126,7 +131,7 @@ export default function Admin() {
     } catch (e: any) { report(e.message, true); }
   }
 
-  function selectTab(s: string) { setTab(s); setEdit({}); setDetail(null); setMsg(''); setMenuOpen(false); load(s); }
+  function selectTab(s: string) { setTab(s); setEdit({}); setMsg(''); setMenuOpen(false); load(s); }
 
   async function upload(targetFolder = folder, target: 'edit' | 'homepage' | 'settings' | 'short' = uploadTarget) {
     if (!file) return report(target === 'short' ? 'Choose a video first' : 'Choose an image first', true);
@@ -234,6 +239,22 @@ export default function Admin() {
       {busy ? 'Uploading…' : target === 'short' ? 'Upload video' : 'Upload image'}
     </button>
   </>;
+
+  const filteredOrders = tab === 'Orders'
+    ? items.filter((o: Any) => {
+        const q = orderSearch.trim().toLowerCase();
+        const matchesSearch = !q || String(o.number || '').toLowerCase().includes(q) || String(o.customer?.name || '').toLowerCase().includes(q) || String(o.customer?.email || '').toLowerCase().includes(q) || String(o.customer?.phone || '').toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+        if (orderFilter === 'All') return true;
+        if (orderFilter === 'Pending') return o.paymentStatus === 'pending' || o.paymentStatus === 'failed';
+        if (orderFilter === 'Paid') return o.paymentStatus === 'paid' && !['shipped', 'out_for_delivery', 'delivered', 'cancelled'].includes(String(o.fulfillmentStatus || ''));
+        if (orderFilter === 'Processing') return o.fulfillmentStatus === 'processing';
+        if (orderFilter === 'Shipped') return ['shipped', 'out_for_delivery'].includes(String(o.fulfillmentStatus || '')) || !!o.shipment?.awb;
+        if (orderFilter === 'Delivered') return o.fulfillmentStatus === 'delivered';
+        if (orderFilter === 'Cancelled') return o.fulfillmentStatus === 'cancelled' || o.paymentStatus === 'cancelled';
+        return true;
+      })
+    : items;
 
   if (checking) return <main className="page-shell prose"><p>Checking session…</p></main>;
 
@@ -364,32 +385,22 @@ export default function Admin() {
 
       {tab === 'Orders' && <>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
-        <input placeholder="Search Order ID, name or phone" value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} style={{ maxWidth: 260 }} />
-        {['All', 'Pending', 'Paid', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((f) => (
-          <button key={f} className={orderFilter === f ? 'primary-button' : 'outline-button'} style={{ padding: '6px 12px' }} onClick={() => setOrderFilter(f)}>{f}</button>
-        ))}
+        <input placeholder="Search Order ID, customer name or email" value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} style={{ maxWidth: 260 }} />
+        <select value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} style={{ maxWidth: 200 }}>
+          {['All', 'Pending', 'Paid', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
       </div>
-      <div className="admin-panel">{items.filter((o) => {
-        const q = orderSearch.trim().toLowerCase();
-        const matchesSearch = !q || String(o.number || '').toLowerCase().includes(q) || String(o.customer?.name || '').toLowerCase().includes(q) || String(o.customer?.phone || '').toLowerCase().includes(q);
-        if (!matchesSearch) return false;
-        if (orderFilter === 'All') return true;
-        if (orderFilter === 'Pending') return o.paymentStatus === 'pending' || o.paymentStatus === 'failed';
-        if (orderFilter === 'Paid') return o.paymentStatus === 'paid' && !['shipped', 'out_for_delivery', 'delivered', 'cancelled'].includes(String(o.fulfillmentStatus || ''));
-        if (orderFilter === 'Processing') return o.fulfillmentStatus === 'processing';
-        if (orderFilter === 'Shipped') return ['shipped', 'out_for_delivery'].includes(String(o.fulfillmentStatus || '')) || !!o.shipment?.awb;
-        if (orderFilter === 'Delivered') return o.fulfillmentStatus === 'delivered';
-        if (orderFilter === 'Cancelled') return o.fulfillmentStatus === 'cancelled' || o.paymentStatus === 'cancelled';
-        return true;
-      }).map((o) => <div className="admin-line" key={o._id}>
+      <div className="admin-panel">
+        {filteredOrders.length === 0 && <div className="admin-line"><span>No orders match the selected filters.</span></div>}
+        {filteredOrders.map((o: Any) => <div className="admin-line" key={o._id}>
         <span>
           <strong>{o.number}</strong> — ₹{o.total} — Payment: {o.paymentStatus} — Status: {o.fulfillmentStatus} — Shipment: {o.shipment?.status || (o.shipment?.awb ? 'created' : 'not created')} — {o.customer?.name} — {o.customer?.phone}
           {o.shipment?.awb ? ` — AWB ${o.shipment.awb}` : ''}{o.shippingMethod ? ` — ${o.shippingMethod} shipping` : ''}{o.simulation ? ' (SIMULATED)' : ''}
         </span>
-        <button onClick={async () => { setDetailLoading(true); try { const x = await api('/api/admin/orders/' + o._id); setDetail({ ...x.order, payment: x.payment }); } catch (e: any) { report(e.message, true); } finally { setDetailLoading(false); } }}>View</button>
+        <button onClick={() => { if (typeof window !== 'undefined') { sessionStorage.setItem('adminOrderFilter', orderFilter); sessionStorage.setItem('adminOrderSearch', orderSearch); window.location.href = '/admin/orders/' + encodeURIComponent(o._id); } }}>View</button>
         {o.paymentStatus === 'paid' && o.shippingMethod !== 'manual' && !o.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: o._id, retry: o.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Orders'); } catch (e: any) { report(e.message, true); load('Orders'); } }}>{o.shipment?.creationState === 'failed' ? 'Retry shipment' : 'Create shipment'}</button>}
         {o.shipment?.awb && <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(o._id)} target="_blank" rel="noopener">Label</a>}
-        {o.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/track?awb=' + encodeURIComponent(o.shipment.awb)); setDetail((d: Any) => d ? { ...d, tracking: x } : d); report('Tracking updated', false); load('Orders'); } catch (e: any) { report(e.message, true); } }}>Track</button>}
+        {o.shipment?.awb && <button onClick={async () => { try { await api('/api/shipping/track?awb=' + encodeURIComponent(o.shipment.awb)); report('Tracking updated', false); load('Orders'); } catch (e: any) { report(e.message, true); } }}>Track</button>}
         {o.shipment?.error && <small className="stat-small">Shipping error: {o.shipment.error}</small>}
         <button onClick={async () => { try { await api('/api/admin/orders/' + o._id + '/reconcile', 'POST'); report('Reconciled', false); load('Orders'); } catch (e: any) { report(e.message, true); } }}>Reconcile</button>
         <button disabled={o.paymentStatus !== 'paid' && o.paymentStatus !== 'partially_refunded'} onClick={async () => {
@@ -399,104 +410,6 @@ export default function Admin() {
         }}>Refund</button>
         <button onClick={async () => { const reason = prompt('Cancellation reason (optional)') || ''; try { await api('/api/admin/orders/' + o._id + '/cancel', 'POST', { reason }); report('Order cancelled', false); load('Orders'); } catch (e: any) { report(e.message, true); } }}>Cancel</button>
       </div>)}</div>
-      {detailLoading && <div className="tracking-card"><p>Loading order details…</p></div>}
-      {detail && !detailLoading && <div className="tracking-card" style={{ maxWidth: 920, textAlign: 'left' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <h2>Order {detail.number}</h2>
-          <button onClick={() => setDetail(null)}>Close</button>
-        </div>
-
-        <h3>Customer Information</h3>
-        <div className="admin-line"><span>Name</span><strong>{detail.customer?.name || '—'}</strong></div>
-        <div className="admin-line"><span>Email</span><strong>{detail.customer?.email || '—'}</strong></div>
-        <div className="admin-line"><span>Phone</span><strong>{detail.customer?.phone || '—'}</strong></div>
-
-        <h3>Delivery Address</h3>
-        <div className="admin-line"><span>House number</span><strong>{detail.customer?.houseNo || '—'}</strong></div>
-        <div className="admin-line"><span>Street</span><strong>{detail.customer?.street || '—'}</strong></div>
-        <div className="admin-line"><span>Landmark</span><strong>{detail.customer?.landmark || '—'}</strong></div>
-        <div className="admin-line"><span>City</span><strong>{detail.customer?.city || '—'}</strong></div>
-        <div className="admin-line"><span>State</span><strong>{detail.customer?.state || '—'}</strong></div>
-        <div className="admin-line"><span>PIN code</span><strong>{detail.customer?.pin || '—'}</strong></div>
-        <div className="admin-line"><span>Complete address</span><strong>{detail.customer?.address || '—'}</strong></div>
-
-        <h3>Order Information</h3>
-        <div className="admin-line"><span>Order ID</span><strong>{detail._id}</strong></div>
-        <div className="admin-line"><span>Order number</span><strong>{detail.number}</strong></div>
-        <div className="admin-line"><span>Order date</span><strong>{detail.createdAt ? new Date(detail.createdAt).toLocaleString() : '—'}</strong></div>
-        <div className="admin-line"><span>Shipping method</span><strong>{detail.shippingMethod || '—'}</strong></div>
-        {(detail.items || []).map((item: Any, idx: number) => (
-          <div className="admin-line" key={idx}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {item.image && <img src={item.image} alt={item.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />}
-              {item.name} × {item.qty}
-            </span>
-            <strong>₹{item.price} each · ₹{Number(item.price) * Number(item.qty)}</strong>
-          </div>
-        ))}
-        <div className="admin-line"><span>Subtotal</span><strong>₹{detail.subtotal}</strong></div>
-        <div className="admin-line"><span>Shipping charges</span><strong>₹{detail.shipping}</strong></div>
-        {detail.discount ? <div className="admin-line"><span>Discount</span><strong>-₹{detail.discount}</strong></div> : null}
-        <div className="admin-line"><span>Total amount</span><strong>₹{detail.total}</strong></div>
-
-        <h3>Payment Information</h3>
-        <div className="admin-line"><span>Razorpay payment ID</span><strong>{detail.razorpayPaymentId || detail.payment?.razorpayPaymentId || '—'}</strong></div>
-        <div className="admin-line"><span>Payment status</span><strong>{detail.paymentStatus}</strong></div>
-        <div className="admin-line"><span>Payment method</span><strong>{detail.payment?.method || '—'}</strong></div>
-        <div className="admin-line"><span>Payment verification</span><strong>{detail.payment?.signatureVerified ? 'Verified' : 'Not verified'}</strong></div>
-        {detail.simulation ? <div className="admin-line"><span>Simulation</span><strong>Yes (dev only)</strong></div> : null}
-
-        <h3>Shipment Information</h3>
-        <div className="admin-line"><span>Shipment ID</span><strong>{detail.shipment?.shipmentId || '—'}</strong></div>
-        <div className="admin-line"><span>AWB number</span><strong>{detail.shipment?.awb || '—'}</strong></div>
-        <div className="admin-line"><span>Shipment status</span><strong>{detail.shipment?.status || '—'}</strong></div>
-        <div className="admin-line"><span>Courier</span><strong>{detail.shipment?.courier || '—'}</strong></div>
-        <div className="admin-line"><span>Tracking URL</span><strong>{detail.shipment?.trackingUrl ? <a href={detail.shipment.trackingUrl} target="_blank" rel="noopener">{detail.shipment.trackingUrl}</a> : '—'}</strong></div>
-        <div className="admin-line"><span>Shipping label</span><strong>{detail.shipment?.labelUrl ? <a href={detail.shipment.labelUrl} target="_blank" rel="noopener">Open label</a> : '—'}</strong></div>
-        <div className="admin-line"><span>Created at</span><strong>{detail.shipment?.createdAt ? new Date(detail.shipment.createdAt).toLocaleString() : '—'}</strong></div>
-        {detail.shipment?.error ? <div className="admin-line"><span>Error</span><strong>{detail.shipment.error}</strong></div> : null}
-
-        {(detail.shipment?.trackingEvents || detail.shipment?.updates || []).length > 0 && <>
-          <h4>Tracking history</h4>
-          <ul className="tracking-timeline">
-            {(detail.shipment?.trackingEvents || detail.shipment?.updates || []).map((u: Any, idx: number) => (
-              <li key={idx}>
-                <strong>{u.status}</strong> {u.location ? `— ${u.location}` : ''}
-                <small>{u.at ? new Date(u.at).toLocaleString() : ''}{u.description ? ` · ${u.description}` : ''}</small>
-              </li>
-            ))}
-          </ul>
-        </>}
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-          {detail.paymentStatus === 'paid' && detail.shippingMethod !== 'manual' && !detail.shipment?.awb && (
-            <button className="primary-button" onClick={async () => {
-              try {
-                const x = await api('/api/shipping/create', 'POST', { orderId: detail._id, retry: detail.shipment?.creationState === 'failed' });
-                report('Shipment created: ' + x.awb, false);
-                const refreshed = await api('/api/admin/orders/' + detail._id);
-                setDetail({ ...refreshed.order, payment: refreshed.payment });
-                load('Orders');
-              } catch (e: any) { report(e.message, true); }
-            }}>{detail.shipment?.creationState === 'failed' ? 'Retry shipment' : 'Create Shipment'}</button>
-          )}
-          {detail.shipment?.awb && <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(detail._id)} target="_blank" rel="noopener">Label</a>}
-          {detail.shipment?.awb && <button onClick={async () => {
-            try {
-              const x = await api('/api/shipping/track?awb=' + encodeURIComponent(detail.shipment.awb));
-              setDetail((d: Any) => d ? { ...d, tracking: x } : d);
-              const refreshed = await api('/api/admin/orders/' + detail._id);
-              setDetail({ ...refreshed.order, payment: refreshed.payment });
-              report('Tracking updated', false);
-            } catch (e: any) { report(e.message, true); }
-          }}>Track Shipment</button>}
-          {detail.shipment?.trackingUrl && <a className="admin-link-button" href={detail.shipment.trackingUrl} target="_blank" rel="noopener">Open tracking page</a>}
-        </div>
-        {detail.tracking && <div className="admin-panel" style={{ marginTop: 12 }}>
-          <strong>Latest tracking response</strong>
-          <p className="muted tiny">{detail.tracking?.data?.status || detail.tracking?.status || ''}</p>
-        </div>}
-      </div>}
       </>}
 
       {tab === 'Payments' && <div className="admin-panel">{items.map((p) => <div className="admin-line" key={p._id}>
@@ -511,13 +424,13 @@ export default function Admin() {
           {s.shippingQuote?.parcel?.billableWeightGrams ? <small className="stat-small"> · {s.shippingQuote.parcel.billableWeightGrams} g · {s.shippingQuote.source}</small> : null}
           {s.shipment?.error ? <small className="stat-small"> · {s.shipment.error}</small> : null}
         </span>
-        {s.shipment?.awb && <button onClick={async () => { try { const x = await api('/api/shipping/track?awb=' + encodeURIComponent(s.shipment.awb)); setDetail(x); } catch (e: any) { report(e.message, true); } }}>Track</button>}
+        {s.shipment?.awb && <button onClick={async () => { try { await api('/api/shipping/track?awb=' + encodeURIComponent(s.shipment.awb)); report('Tracking updated', false); load('Shipments'); } catch (e: any) { report(e.message, true); } }}>Track</button>}
         {s.shipment?.awb && <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(s._id)} target="_blank" rel="noopener">Label</a>}
         {!s.shipment?.awb && s.paymentStatus === 'paid' && s.shippingMethod !== 'manual' && <button onClick={async () => { try { const x = await api('/api/shipping/create', 'POST', { orderId: s._id, retry: s.shipment?.creationState === 'failed' }); report('Shipment created: ' + x.awb, false); load('Shipments'); } catch (e: any) { report(e.message, true); load('Shipments'); } }}>{s.shipment?.creationState === 'failed' ? 'Retry' : 'Create shipment'}</button>}
         {s.shippingMethod === 'manual' && s.paymentStatus === 'paid' && <small className="stat-small">Manual fulfilment — no carrier AWB</small>}
         {s.shipment?.awb && <button onClick={async () => { try { await api('/api/shipping/cancel', 'POST', { orderId: s._id }); report('Shipment cancelled', false); load('Shipments'); } catch (e: any) { report(e.message, true); } }}>Cancel</button>}
       </div>)}</div>}
-      {tab === 'Shipments' && detail && <div className="tracking-card"><pre style={{ whiteSpace: 'pre-wrap', textAlign: 'left', maxHeight: 320, overflow: 'auto' }}>{JSON.stringify(detail, null, 2)}</pre><button onClick={() => setDetail(null)}>Close</button></div>}
+
 
       {tab === 'Coupons' && <>
         <div className="admin-panel">{items.map((c) => <div className="admin-line" key={c._id}>
