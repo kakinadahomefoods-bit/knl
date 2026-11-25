@@ -5,23 +5,28 @@ import mongoose from 'mongoose';
 
 export const runtime = 'nodejs';
 
-const ALLOWED_STATUSES = new Set(['pending', 'processing', 'shipped', 'delivered', 'cancelled']);
+const ALLOWED_STATUSES = new Set([
+  'pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled',
+]);
 
 const TRANSITIONS: Record<string, string[]> = {
-  new_order: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
-  payment_verified: ['processing', 'shipped', 'delivered', 'cancelled'],
-  pending: ['processing', 'shipped', 'delivered', 'cancelled'],
-  processing: ['shipped', 'delivered', 'cancelled'],
-  review_required: ['processing', 'shipped', 'delivered', 'cancelled'],
-  shipment_created: ['shipped', 'delivered', 'cancelled'],
-  shipment_created_simulated: ['shipped', 'delivered', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
+  new_order: ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  payment_verified: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  pending: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  confirmed: ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  processing: ['packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  packed: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  review_required: ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  shipment_created: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  shipment_created_simulated: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+  shipped: ['out_for_delivery', 'delivered', 'cancelled'],
   out_for_delivery: ['delivered', 'cancelled'],
+  unfulfilled: ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
   delivered: [],
   cancelled: [],
   refunded: [],
   partially_refunded: ['cancelled'],
-  shipment_failed: ['processing', 'shipped', 'delivered', 'cancelled'],
+  shipment_failed: ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
 };
 
 type C = { params: Promise<{ id: string }> };
@@ -48,7 +53,7 @@ export async function PATCH(req: Request, c: C) {
   if (nextStatus === current) {
     return Response.json({ error: 'Order is already in this status' }, { status: 400 });
   }
-  const allowed = TRANSITIONS[current] || [];
+  const allowed = (TRANSITIONS[current] || Array.from(ALLOWED_STATUSES)).filter((s) => s !== current);
   if (!allowed.includes(nextStatus)) {
     return Response.json({ error: `Cannot move order from ${current} to ${nextStatus}` }, { status: 400 });
   }

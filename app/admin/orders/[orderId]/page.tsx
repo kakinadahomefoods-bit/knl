@@ -21,6 +21,23 @@ export default function AdminOrderDetailsPage() {
   const [payment, setPayment] = useState<Any | null>(null);
 
   const [status, setStatus] = useState('');
+  const TRANSITIONS: Record<string, string[]> = {
+    new_order: ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    payment_verified: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    pending: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    confirmed: ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    processing: ['packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    packed: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    shipped: ['out_for_delivery', 'delivered', 'cancelled'],
+    out_for_delivery: ['delivered', 'cancelled'],
+    unfulfilled: ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    shipment_created: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    shipment_created_simulated: ['shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    review_required: ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    shipment_failed: ['processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'],
+    delivered: [],
+    cancelled: [],
+  };
   const [notes, setNotes] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [courier, setCourier] = useState('');
@@ -171,6 +188,50 @@ export default function AdminOrderDetailsPage() {
               <div className="admin-line"><span>Shipment status</span><strong>{order.shipment?.status || '—'}</strong></div>
               <div className="admin-line"><span>Courier</span><strong>{order.shipment?.courier || '—'}</strong></div>
               <div className="admin-line"><span>Tracking URL</span><strong>{order.shipment?.trackingUrl ? <a href={order.shipment.trackingUrl} target="_blank" rel="noopener">{order.shipment.trackingUrl}</a> : '—'}</strong></div>
+              {order.paymentStatus === 'paid' && !order.shipment?.awb && (
+                <div style={{ marginTop: 12 }}>
+                  <button className="primary-button" disabled={updating} onClick={async () => {
+                    setUpdating(true);
+                    setMsg('');
+                    try {
+                      const r = await fetch('/api/shipping/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ orderId: order._id, retry: order.shipment?.creationState === 'failed' }),
+                      });
+                      const x = await r.json();
+                      if (!r.ok) throw new Error(x.error || 'Shipment creation failed');
+                      setMsg('Shipment created: ' + x.awb);
+                      setIsError(false);
+                      await loadOrder();
+                    } catch (e: any) {
+                      setMsg(e.message || 'Shipment creation failed');
+                      setIsError(true);
+                    } finally {
+                      setUpdating(false);
+                    }
+                  }}>
+                    {order.shipment?.creationState === 'failed' ? 'Retry Shipment' : 'Create Shipment'}
+                  </button>
+                </div>
+              )}
+              {order.shipment?.awb && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                  <a className="admin-link-button" href={'/api/shipping/label?orderId=' + encodeURIComponent(order._id)} target="_blank" rel="noopener">Download Label</a>
+                  <button className="outline-button" onClick={async () => {
+                    try {
+                      await fetch('/api/shipping/track?awb=' + encodeURIComponent(order.shipment.awb));
+                      setMsg('Tracking updated');
+                      setIsError(false);
+                      await loadOrder();
+                    } catch (e: any) {
+                      setMsg(e.message || 'Tracking update failed');
+                      setIsError(true);
+                    }
+                  }}>Update Tracking</button>
+                  {order.shipment?.trackingUrl && <a className="admin-link-button" href={order.shipment.trackingUrl} target="_blank" rel="noopener">Track Shipment</a>}
+                </div>
+              )}
 
               {(order.shipment?.trackingEvents || order.shipment?.updates || []).length > 0 && (
                 <>
@@ -202,7 +263,9 @@ export default function AdminOrderDetailsPage() {
               <div className="admin-line">
                 <span>Status</span>
                 <select value={status} onChange={(e) => setStatus(e.target.value)}>
-                  {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((s) => <option key={s} value={s}>{s}</option>)}
+                  {[status, ...(TRANSITIONS[status] || TRANSITIONS[order?.fulfillmentStatus] || [])]
+                    .filter((v, i, a) => v && a.indexOf(v) === i)
+                    .map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <label>Admin notes (optional)
