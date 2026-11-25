@@ -68,7 +68,7 @@ export async function trackShipment(awb: string) {
 export async function createShipment(order: any, meta: { weight?: number; length?: number; breadth?: number; height?: number } = {}) {
   const token = process.env.DELHIVERY_API_TOKEN;
   const pickup = process.env.DELHIVERY_PICKUP_NAME;
-  if (!token || !pickup) return { ok: false, error: 'Delhivery token or pickup name missing' };
+  if (!token || !pickup) return { ok: false, error: 'Delhivery is not configured: missing API token or pickup name' };
   const payload = {
     shipments: [{
       name: order.customer.name,
@@ -99,7 +99,11 @@ export async function createShipment(order: any, meta: { weight?: number; length
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok || data.success === false) return { ok: false, error: 'Shipment rejected', details: data };
-  const awb = data.packages?.[0]?.waybill || data.packages?.[0]?.awb;
+  const pkg = Array.isArray(data.packages) ? data.packages[0] || {} : {};
+  const awb = pkg.waybill || pkg.awb || pkg.AWB || data.waybill || data.awb;
   if (!awb) return { ok: false, error: 'Delhivery did not return an AWB', details: data };
-  return { ok: true, awb, provider: data };
+  const shipmentId = String(pkg.shipment_id || pkg.shipmentId || pkg.id || pkg.reference || awb);
+  const labelUrl = String(pkg.label || pkg.label_url || data.label || data.label_url || '');
+  const trackingUrl = `https://www.delhivery.com/track/package/${encodeURIComponent(String(awb))}`;
+  return { ok: true, awb: String(awb), shipmentId, labelUrl, trackingUrl, provider: data };
 }

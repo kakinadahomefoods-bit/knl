@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { Order } from '@/lib/models';
+import { Order, Payment } from '@/lib/models';
 import { isAdmin, adminDenied, clean } from '@/lib/security';
 import { notifyOrder, deliveryEmail } from '@/lib/email';
 import mongoose from 'mongoose';
@@ -7,8 +7,9 @@ import mongoose from 'mongoose';
 export const runtime = 'nodejs';
 
 const FULFILLMENT = new Set([
-  'unfulfilled', 'processing', 'review_required', 'shipment_created',
-  'shipment_created_simulated', 'shipped', 'delivered', 'cancelled', 'refunded',
+  'new_order', 'payment_verified', 'processing', 'review_required', 'shipment_created',
+  'shipment_created_simulated', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded',
+  'partially_refunded', 'shipment_failed',
 ]);
 
 type C = { params: Promise<{ id: string }> };
@@ -42,5 +43,11 @@ export async function GET(_: Request, c: C) {
   await db();
   const order = await Order.findById(id).lean() as any;
   if (!order) return Response.json({ error: 'Order not found' }, { status: 404 });
-  return Response.json({ order: { ...order, _id: String(order._id) } });
+  const payment = await Payment.findOne({
+    $or: [
+      { orderId: order._id },
+      { razorpayOrderId: order.razorpayOrderId },
+    ],
+  }).sort({ createdAt: -1 }).lean() as any;
+  return Response.json({ order: { ...order, _id: String(order._id) }, payment: payment ? { ...payment, _id: String(payment._id) } : null });
 }

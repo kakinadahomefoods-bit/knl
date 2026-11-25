@@ -66,6 +66,17 @@ const shipmentUpdate = new Schema(
   { _id: true }
 );
 
+const trackingEvent = new Schema(
+  {
+    status: { type: String, trim: true },
+    location: { type: String, trim: true },
+    at: { type: Date, default: Date.now },
+    description: { type: String, trim: true },
+    raw: Schema.Types.Mixed,
+  },
+  { _id: true }
+);
+
 const notification = new Schema(
   {
     type: { type: String, required: true },
@@ -144,16 +155,21 @@ const order = new Schema(
     simulation: { type: Boolean, default: false },
     trackingToken: { type: String, unique: true, sparse: true },
     shipment: {
+      shipmentId: { type: String, default: '' },
       awb: { type: String, default: '' },
       status: String,
       reference: String,
       labelUrl: String,
+      trackingUrl: String,
+      courier: { type: String, default: 'Delhivery' },
+      createdAt: Date,
       simulated: { type: Boolean, default: false },
       creationState: { type: String, enum: ['creating', 'created', 'failed'], default: undefined },
       attempts: { type: Number, default: 0 },
       error: String,
       lastAttemptAt: Date,
       updates: { type: [shipmentUpdate], default: [] },
+      trackingEvents: { type: [trackingEvent], default: [] },
       providerPayload: Schema.Types.Mixed,
     },
     notifications: { type: [notification], default: [] },

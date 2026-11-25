@@ -3,6 +3,7 @@ import { v2 as cloudinary } from 'cloudinary';
 export const MEDIA_FOLDERS = [
   'cruvita/products',
   'cruvita/banners',
+  'cruvita/shorts',
   'cruvita/categories',
   'cruvita/logo',
 ] as const;

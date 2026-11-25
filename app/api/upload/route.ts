@@ -11,10 +11,10 @@ export async function POST(req: Request) {
     const data = await req.formData();
     const file = data.get('file');
     const folder = resolveFolder(data.get('folder'));
-    const video = file instanceof File && ['video/mp4', 'video/webm'].includes(file.type);
+    const video = file instanceof File && file.type.startsWith('video/');
     if (!(file instanceof File) || (!file.type.startsWith('image/') && !video) ||
-        (video && folder !== 'cruvita/banners') || file.size > 4 * 1024 * 1024) {
-      return Response.json({ error: 'Image or banner MP4/WebM under 4MB required' }, { status: 400 });
+        (video && !['cruvita/banners', 'cruvita/shorts'].includes(folder)) || file.size > 4 * 1024 * 1024) {
+      return Response.json({ error: 'Image or MP4/WebM video under 4MB required' }, { status: 400 });
     }
     const publicId = clean(data.get('publicId'), 200) || undefined;
     const bytes = Buffer.from(await file.arrayBuffer());

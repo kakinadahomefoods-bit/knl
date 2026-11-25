@@ -231,9 +231,19 @@ type QuoteInput = {
 /** Single authoritative quote path used by both the checkout and the quote API. */
 export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
   const settings = await getShippingSettings();
+  const resolved = resolveShippingMode(settings);
   const destinationPin = normalizePin(input.pin);
   if (!isValidPin(destinationPin)) {
     return { ok: false, status: 400, error: 'Enter a valid six-digit PIN code', errorCode: 'PIN_INVALID', serviceable: false };
+  }
+  if (resolved.mode === 'unconfigured') {
+    return {
+      ok: false,
+      status: 503,
+      errorCode: 'SHIPPING_NOT_CONFIGURED',
+      error: resolved.friendlyError || 'Delivery charges have not been configured yet. Please contact the store.',
+      serviceable: false,
+    };
   }
 
   const items = Array.isArray(input.items) ? input.items : [];
@@ -295,18 +305,24 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     settings.packageDefaults
   );
 
-  const amount = settings.flatShippingFee;
-  const baseAmount = settings.flatShippingFee;
+  let amount = settings.flatShippingFee;
+  const baseAmount = Number.isFinite(settings.flatShippingFee) ? settings.flatShippingFee : 0;
   let source: ShippingQuote['source'] = 'flat_fee';
   let note = 'Delivery charge configured by the store.';
   if (!Number.isFinite(amount) || amount < 0) {
-    // No configured fee means no invented charge: block until the admin sets one.
-    return {
-      ok: false,
-      status: 503,
-      errorCode: 'SHIPPING_NOT_CONFIGURED',
-      error: 'Delivery charges have not been configured yet. Please contact the store.',
-    };
+    if (resolved.mode === 'simulation') {
+      amount = 0;
+      source = 'simulation';
+      note = 'Development-only simulated delivery. No real courier charge is collected.';
+    } else {
+      // No configured fee means no invented charge: block until the admin sets one.
+      return {
+        ok: false,
+        status: 503,
+        errorCode: 'SHIPPING_NOT_CONFIGURED',
+        error: 'Delivery charges have not been configured yet. Please contact the store.',
+      };
+    }
   }
 
   const shipping = applyFreeShipping(net, amount, settings.freeShippingThreshold);
@@ -316,13 +332,14 @@ export async function quoteForCart(input: QuoteInput): Promise<QuoteResult> {
     note = `Free delivery applied on orders above ₹${settings.freeShippingThreshold}.`;
   }
 
+  const shippingMethod = resolved.mode === 'simulation' ? 'simulation' : resolved.mode === 'delhivery' ? 'delhivery' : 'manual';
   const quote: ShippingQuote = {
     amount: shipping,
     baseAmount: roundMoney(baseAmount),
     currency: 'INR',
     source,
-    method: 'manual',
-    simulated: false,
+    method: shippingMethod as ShippingQuote['method'],
+    simulated: resolved.mode === 'simulation',
     pickupPin: settings.pickupPin,
     destinationPin,
     parcel,
@@ -503,10 +520,14 @@ export async function createShipmentForOrder(
       { _id: orderId },
       {
         $set: {
+          'shipment.shipmentId': result.shipmentId || result.awb,
           'shipment.awb': result.awb,
           'shipment.status': simulated ? 'created (simulated)' : 'created',
           'shipment.reference': order.number,
-          'shipment.labelUrl': result.provider?.label_url || result.provider?.label || '',
+          'shipment.courier': 'Delhivery',
+          'shipment.labelUrl': result.labelUrl || result.provider?.label_url || result.provider?.label || '',
+          'shipment.trackingUrl': result.trackingUrl || '',
+          'shipment.createdAt': new Date(),
           'shipment.simulated': simulated,
           'shipment.providerPayload': result.provider || {},
           'shipment.creationState': 'created',
@@ -515,6 +536,14 @@ export async function createShipmentForOrder(
             {
               status: simulated ? 'Shipment created (simulated)' : 'Shipment created',
               location: settings.pickupName || 'Cruvita Cookies studio',
+              at: new Date(),
+            },
+          ],
+          'shipment.trackingEvents': [
+            {
+              status: simulated ? 'Shipment created (simulated)' : 'Shipment created',
+              location: settings.pickupName || 'Cruvita Cookies studio',
+              description: simulated ? 'Development-only simulation' : 'Shipment created with Delhivery',
               at: new Date(),
             },
           ],
